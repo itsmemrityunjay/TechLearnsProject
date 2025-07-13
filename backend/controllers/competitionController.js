@@ -108,12 +108,18 @@ const getCompetitions = async (req, res) => {
     }
 
     // Parse query parameters
-    const { category, status, difficulty } = req.query;
+    const { category, status, difficulty, type } = req.query;
     const query = {};
 
     if (category) query.category = category;
     if (status) query.status = status;
     if (difficulty) query.difficulty = difficulty;
+    // Add support for the type parameter (maps to competitionType in the model)
+    if (type === 'internal' || type === 'external') {
+      query.competitionType = type;
+    }
+
+    console.log("Competition query:", query); // Add logging to debug
 
     // Get competitions without population first to isolate issues
     const competitions = await Competition.find(query).sort({ startDate: -1 });
