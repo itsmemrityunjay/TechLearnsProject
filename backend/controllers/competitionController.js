@@ -97,6 +97,7 @@ const createCompetition = async (req, res) => {
 // @route   GET /api/competitions
 // @access  Public
 const getCompetitions = async (req, res) => {
+  console.log("GET /api/competitions endpoint hit with query:", req.query);
   try {
     // Check database connection first
     if (mongoose.connection.readyState !== 1) {
@@ -114,15 +115,18 @@ const getCompetitions = async (req, res) => {
     if (category) query.category = category;
     if (status) query.status = status;
     if (difficulty) query.difficulty = difficulty;
+    
     // Add support for the type parameter (maps to competitionType in the model)
     if (type === 'internal' || type === 'external') {
       query.competitionType = type;
+      console.log(`Filtering by competitionType: ${type}`);
     }
 
-    console.log("Competition query:", query); // Add logging to debug
+    console.log("Competition query:", query);
 
     // Get competitions without population first to isolate issues
     const competitions = await Competition.find(query).sort({ startDate: -1 });
+    console.log(`Found ${competitions.length} competitions matching query`);
     
     // Then populate if needed
     const populatedCompetitions = await Competition.populate(competitions, {
@@ -130,10 +134,10 @@ const getCompetitions = async (req, res) => {
       select: "name firstName lastName organizationName"
     });
 
-    res.json(populatedCompetitions);
+    return res.json(populatedCompetitions);
   } catch (error) {
     console.error("Error fetching competitions:", error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       message: "Failed to fetch competitions", 
       error: error.message,
       stack: process.env.NODE_ENV === "production" ? "🥞" : error.stack 

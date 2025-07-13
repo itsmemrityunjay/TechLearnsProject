@@ -6,11 +6,8 @@
             "use": "@vercel/node"
         },
         {
-            "src": "package.json",
-            "use": "@vercel/static-build",
-            "config": {
-                "distDir": "dist"
-            }
+            "src": "frontend/dist/**",
+            "use": "@vercel/static"
         }
     ],
     "routes": [
@@ -19,12 +16,8 @@
             "dest": "backend/index.js"
         },
         {
-            "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|svg|webp|json)$)",
-            "dest": "/$1"
-        },
-        {
             "src": "/(.*)",
-            "dest": "/index.html"
+            "dest": "frontend/dist/$1"
         }
     ]
 }
