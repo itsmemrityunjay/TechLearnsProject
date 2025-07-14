@@ -201,12 +201,12 @@ const PastCompetitions = () => {
                                         </div>
 
                                         {/* Prize value */}
-                                        <div className="flex items-center mt-4 bg-[#013954]/5 px-3 py-1 rounded-md inline-block">
+                                        {/* <div className="w-full items-center mt-4 bg-[#013954]/5 px-3 py-1 rounded-md inline-block">
                                             <FaTrophy className="mr-2 text-[#f99e1c]" size={14} />
-                                            <span className="text-[#013954] text-sm font-medium">
+                                            <span className="text-[#013954] text-left text-sm font-medium">
                                                 {getPrizeValue(competition.prizes)}
                                             </span>
-                                        </div>
+                                        </div> */}
                                     </div>
                                 </motion.div>
                             ))}
