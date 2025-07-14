@@ -13,11 +13,11 @@ const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [profileUpdating, setProfileUpdating] = useState(false);
-  // ...existing code...
+  // ...existing state declarations...
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    email: "", // <-- Add this
+    email: "",
     contactNumber: "",
     schoolOrganizationName: "",
     education: {
@@ -39,7 +39,6 @@ const UserProfile = () => {
       document: "",
     },
   });
-  // ...existing code...
   const [newSkill, setNewSkill] = useState("");
 
   const navigate = useNavigate();
@@ -79,7 +78,7 @@ const UserProfile = () => {
           setFormData({
             firstName: data.firstName || "",
             lastName: data.lastName || "",
-            email: data.email || "", // <-- Add this
+            email: data.email || "",
             contactNumber: data.contactNumber || "",
             schoolOrganizationName: data.schoolOrganizationName || "",
             education: {
@@ -404,21 +403,20 @@ const UserProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#f99e1c]"></div>
       </div>
     );
   }
 
-  // Add this check
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-50 border-l-4 border-red-500 p-4">
-          <p className="text-red-700">Failed to load user data. Please try again later.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white border-l-4 border-[#f99e1c] p-4 rounded shadow-md">
+          <p className="text-gray-700">Failed to load user data. Please try again later.</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="mt-4 px-4 py-2 bg-[#013954] text-white rounded hover:bg-opacity-90 transition-all"
           >
             Refresh Page
           </button>
@@ -428,15 +426,15 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="container mx-auto py-4 px-0 sm:px-6 lg:px-0">
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+    <div className="container mx-auto py-8">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-100">
         {/* Profile Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-4">
+        <div className="bg-gradient-to-r from-[#013954] to-[#02507c] px-8 py-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <h1 className="text-2xl font-bold text-white">My Profile</h1>
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className="mt-4 md:mt-0 px-4 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100 transition-colors"
+              className="mt-4 md:mt-0 px-5 py-2 bg-[#f99e1c] text-white rounded-md hover:bg-[#e08c10] transition-colors shadow-sm font-medium"
             >
               {isEditing ? "Cancel Editing" : "Edit Profile"}
             </button>
@@ -444,7 +442,7 @@ const UserProfile = () => {
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 m-6">
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 my-4 rounded">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <svg
@@ -470,7 +468,7 @@ const UserProfile = () => {
         {isEditing ? (
           <form onSubmit={handleSubmit} className="p-6">
             {/* Profile Image */}
-            <div className="mb-6 flex flex-col items-center">
+            <div className="mb-8 flex flex-col items-center">
               <div className="relative">
                 <img
                   src={
@@ -478,11 +476,11 @@ const UserProfile = () => {
                     "https://avatar.iran.liara.run/public"
                   }
                   alt="Profile"
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
                 />
                 <label
                   htmlFor="profile-image"
-                  className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full cursor-pointer hover:bg-blue-600 transition-colors shadow-md"
+                  className="absolute bottom-0 right-0 bg-[#f99e1c] text-white p-2 rounded-full cursor-pointer hover:bg-[#e08c10] transition-all shadow-md"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -525,13 +523,13 @@ const UserProfile = () => {
             </div>
 
             {/* Personal Information */}
-            <div className="bg-gray-50 p-4 rounded-md mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold text-[#013954] mb-4 pb-2 border-b border-gray-100">
                 Personal Information
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     First Name
                   </label>
                   <input
@@ -539,12 +537,12 @@ const UserProfile = () => {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Last Name
                   </label>
                   <input
@@ -552,26 +550,26 @@ const UserProfile = () => {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
                   </label>
                   <input
                     type="email"
                     value={user.email}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 text-gray-600 sm:text-sm cursor-not-allowed"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 bg-gray-50 text-gray-500 cursor-not-allowed"
                     disabled
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     Email cannot be changed
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Contact Number
                   </label>
                   <input
@@ -579,11 +577,11 @@ const UserProfile = () => {
                     name="contactNumber"
                     value={formData.contactNumber}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     School/Organization
                   </label>
                   <input
@@ -591,27 +589,27 @@ const UserProfile = () => {
                     name="schoolOrganizationName"
                     value={formData.schoolOrganizationName}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
               </div>
             </div>
 
             {/* Education */}
-            <div className="bg-gray-50 p-4 rounded-md mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold text-[#013954] mb-4 pb-2 border-b border-gray-100">
                 Education
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Level
                   </label>
                   <select
                     name="education.level"
                     value={formData.education.level}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   >
                     <option value="">Select Level</option>
                     <option value="Elementary">Elementary</option>
@@ -622,7 +620,7 @@ const UserProfile = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Institution
                   </label>
                   <input
@@ -630,11 +628,11 @@ const UserProfile = () => {
                     name="education.institution"
                     value={formData.education.institution}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Year
                   </label>
                   <input
@@ -642,20 +640,20 @@ const UserProfile = () => {
                     name="education.year"
                     value={formData.education.year}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
               </div>
             </div>
 
             {/* Address */}
-            <div className="bg-gray-50 p-4 rounded-md mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold text-[#013954] mb-4 pb-2 border-b border-gray-100">
                 Address
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Street
                   </label>
                   <input
@@ -663,11 +661,11 @@ const UserProfile = () => {
                     name="address.street"
                     value={formData.address.street}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     City
                   </label>
                   <input
@@ -675,11 +673,11 @@ const UserProfile = () => {
                     name="address.city"
                     value={formData.address.city}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     State
                   </label>
                   <input
@@ -687,11 +685,11 @@ const UserProfile = () => {
                     name="address.state"
                     value={formData.address.state}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Country
                   </label>
                   <input
@@ -699,11 +697,11 @@ const UserProfile = () => {
                     name="address.country"
                     value={formData.address.country}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Pin Code
                   </label>
                   <input
@@ -711,28 +709,28 @@ const UserProfile = () => {
                     name="address.pincode"
                     value={formData.address.pincode}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                   />
                 </div>
               </div>
             </div>
 
             {/* Skills */}
-            <div className="bg-gray-50 p-4 rounded-md mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold text-[#013954] mb-4 pb-2 border-b border-gray-100">
                 Skills
               </h2>
               <div className="flex flex-wrap gap-2 mb-4">
                 {formData.skills.map((skill, index) => (
                   <div
                     key={index}
-                    className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center"
+                    className="bg-[#013954] bg-opacity-10 text-[#013954] px-3 py-1.5 rounded-full flex items-center"
                   >
-                    <span>{skill}</span>
+                    <span className="text-sm">{skill}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveSkill(skill)}
-                      className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                      className="ml-2 text-[#013954] hover:text-[#f99e1c] transition-colors focus:outline-none"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -758,12 +756,12 @@ const UserProfile = () => {
                   value={newSkill}
                   onChange={(e) => setNewSkill(e.target.value)}
                   placeholder="Add a new skill"
-                  className="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="flex-1 border border-gray-200 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#f99e1c] focus:border-transparent transition-all text-gray-800"
                 />
                 <button
                   type="button"
                   onClick={handleAddSkill}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="px-5 py-2.5 bg-[#013954] text-white rounded-md hover:bg-opacity-90 transition-colors shadow-sm font-medium"
                 >
                   Add
                 </button>
@@ -771,8 +769,8 @@ const UserProfile = () => {
             </div>
 
             {/* Below Poverty Status */}
-            <div className="bg-gray-50 p-4 rounded-md mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold text-[#013954] mb-4 pb-2 border-b border-gray-100">
                 Below Poverty Status
               </h2>
               <div className="flex items-center mb-4">
@@ -789,18 +787,18 @@ const UserProfile = () => {
                       },
                     })
                   }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-5 w-5 text-[#f99e1c] focus:ring-[#f99e1c] border-gray-300 rounded transition-all"
                 />
                 <label
                   htmlFor="poverty-status"
-                  className="ml-2 block text-sm text-gray-700"
+                  className="ml-2 text-sm text-gray-700"
                 >
                   I am from a below poverty level background
                 </label>
               </div>
               {formData.belowPoverty.status && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="p-4 bg-gray-50 rounded-md">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Upload Verification Document (Ration Card etc.)
                   </label>
                   <div className="flex items-center">
@@ -823,7 +821,7 @@ const UserProfile = () => {
                         </span>
                       </div>
                     )}
-                    <label id="upload-doc-btn" className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <label id="upload-doc-btn" className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-5 w-5 mr-2 text-gray-500"
@@ -849,7 +847,7 @@ const UserProfile = () => {
                       />
                     </label>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-2">
                     Accepted formats: PDF, JPG, JPEG, PNG (Max 5MB)
                   </p>
                 </div>
@@ -861,12 +859,12 @@ const UserProfile = () => {
               <button
                 type="submit"
                 disabled={profileUpdating}
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-8 py-3 bg-[#f99e1c] text-white rounded-md shadow-sm hover:bg-[#e08c10] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f99e1c] transition-all font-medium"
               >
                 {profileUpdating ? (
                   <>
                     <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -897,54 +895,54 @@ const UserProfile = () => {
           <div className="p-6">
             {/* Profile Image and Basic Info */}
             <div className="flex flex-col md:flex-row items-center md:items-start mb-8">
-              <div className="mb-4 md:mb-0 md:mr-8 flex flex-col items-center">
-                <img
-                  src={
-                    user.profileImage ||
-                    "https://avatar.iran.liara.run/public"
-                  }
-                  alt="Profile"
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md"
-                />
+              <div className="mb-4 md:mb-0 md:mr-10 flex flex-col items-center">
+                <div className="relative">
+                  <img
+                    src={
+                      user.profileImage ||
+                      "https://avatar.iran.liara.run/public"
+                    }
+                    alt="Profile"
+                    className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-md"
+                  />
+                  <div className="absolute -bottom-2 -right-2 bg-[#f99e1c] text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md">
+                    <span className="text-xs font-bold">{user?.streak || 0}d</span>
+                  </div>
+                </div>
                 <div className="mt-4 text-center">
-                  <div className="font-semibold text-lg text-gray-800">
+                  <div className="font-semibold text-xl text-[#013954]">
                     {user?.firstName} {user?.lastName}
                   </div>
-                  <div className="text-gray-600">
+                  <div className="text-gray-500 mt-1">
                     {user?.email ? `@${user.email.split("@")[0]}` : ""}
                   </div>
                 </div>
               </div>
 
-              <div className="flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+              <div className="flex-1 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h3 className="text-lg font-medium text-[#013954] mb-4 pb-1 border-b border-gray-100">Personal Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                    <h4 className="text-sm font-medium text-gray-500">Email</h4>
                     <p className="mt-1 text-sm text-gray-900">{user.email}</p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">
-                      Contact Number
-                    </h3>
+                    <h4 className="text-sm font-medium text-gray-500">Contact Number</h4>
                     <p className="mt-1 text-sm text-gray-900">
                       {user.contactNumber || "Not provided"}
                     </p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">
-                      School/Organization
-                    </h3>
+                    <h4 className="text-sm font-medium text-gray-500">School/Organization</h4>
                     <p className="mt-1 text-sm text-gray-900">
                       {user.schoolOrganizationName || "Not provided"}
                     </p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">
-                      Member Since
-                    </h3>
+                    <h4 className="text-sm font-medium text-gray-500">Member Since</h4>
                     <p className="mt-1 text-sm text-gray-900">
                       {(() => {
                         try {
@@ -966,47 +964,44 @@ const UserProfile = () => {
             </div>
 
             {/* Stats */}
-            <div className="border-t border-gray-200 pt-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Activity Stats
-              </h2>
+            <div className="mb-8">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-md border border-gray-200 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
+                  <p className="text-2xl font-bold text-[#f99e1c]">
                     {user.registeredCourses?.length || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Courses</p>
+                  <p className="text-sm text-[#013954] font-medium">Courses</p>
                 </div>
-                <div className="bg-white p-4 rounded-md border border-gray-200 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
+                  <p className="text-2xl font-bold text-[#f99e1c]">
                     {user.competitionsParticipated?.length || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Competitions</p>
+                  <p className="text-sm text-[#013954] font-medium">Competitions</p>
                 </div>
-                <div className="bg-white p-4 rounded-md border border-gray-200 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
+                  <p className="text-2xl font-bold text-[#f99e1c]">
                     {user.badges?.length || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Badges</p>
+                  <p className="text-sm text-[#013954] font-medium">Badges</p>
                 </div>
-                <div className="bg-white p-4 rounded-md border border-gray-200 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
+                  <p className="text-2xl font-bold text-[#f99e1c]">
                     {user.streak || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Day Streak</p>
+                  <p className="text-sm text-[#013954] font-medium">Day Streak</p>
                 </div>
               </div>
             </div>
 
             {/* Skills */}
-            <div className="border-t border-gray-200 pt-6 mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Skills</h2>
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-medium text-[#013954] mb-4 pb-1 border-b border-gray-100">Skills</h2>
               {user.skills && user.skills.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {user.skills.map((skill, index) => (
                     <span
                       key={index}
-                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                      className="bg-[#013954] bg-opacity-10 text-[#013954] px-3 py-1.5 rounded-full text-sm font-medium"
                     >
                       {skill}
                     </span>
@@ -1018,93 +1013,74 @@ const UserProfile = () => {
             </div>
 
             {/* Education */}
-            <div className="border-t border-gray-200 pt-6 mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Education
-              </h2>
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-medium text-[#013954] mb-4 pb-1 border-b border-gray-100">Education</h2>
               {user.education &&
                 (user.education.level || user.education.institution) ? (
-                <div className="bg-white rounded-md p-4 border border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">
-                        Level
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {user.education.level || "Not specified"}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">
-                        Institution
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {user.education.institution || "Not specified"}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">
-                        Year
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {user.education.year || "Not specified"}
-                      </p>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Level</h3>
+                    <p className="text-base text-gray-900">
+                      {user.education.level || "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Institution</h3>
+                    <p className="text-base text-gray-900">
+                      {user.education.institution || "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Year</h3>
+                    <p className="text-base text-gray-900">
+                      {user.education.year || "Not specified"}
+                    </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-gray-500 italic">
-                  No education details provided
-                </p>
+                <p className="text-gray-500 italic">No education details provided</p>
               )}
             </div>
 
             {/* Address */}
-            <div className="border-t border-gray-200 pt-6 mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Address
-              </h2>
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-medium text-[#013954] mb-4 pb-1 border-b border-gray-100">Address</h2>
               {user.address &&
                 (user.address.street ||
                   user.address.city ||
                   user.address.state) ? (
-                <div className="bg-white rounded-md p-4 border border-gray-200">
-                  <p className="text-sm text-gray-900">
+                <div className="bg-gray-50 rounded-md p-4 border border-gray-100">
+                  <p className="text-base text-gray-800">
                     {[
                       user.address.street,
                       user.address.city,
                       user.address.state,
                       user.address.country,
-                      user.address.pincode,
+                      user.address.pincode
                     ]
                       .filter(Boolean)
                       .join(", ")}
                   </p>
                 </div>
               ) : (
-                <p className="text-gray-500 italic">
-                  No address details provided
-                </p>
+                <p className="text-gray-500 italic">No address details provided</p>
               )}
             </div>
 
-
             {/* Below Poverty Status */}
-            <div className="border-t border-gray-200 pt-6 mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Below Poverty Status
-              </h2>
-              <div className="bg-white rounded-md p-4 border border-gray-200">
+            <div className="bg-white p-6 rounded-lg mb-6 shadow-sm border border-gray-100">
+              <h2 className="text-lg font-medium text-[#013954] mb-4 pb-1 border-b border-gray-100">Below Poverty Status</h2>
+              <div className="p-4 bg-gray-50 rounded-md border border-gray-100">
                 <div className="flex items-center">
                   {user.belowPoverty?.status ? (
                     <>
                       <div
                         className={`w-3 h-3 rounded-full mr-2 ${user.belowPoverty?.verified
                           ? "bg-green-500"
-                          : "bg-yellow-500"
+                          : "bg-[#f99e1c]"
                           }`}
                       ></div>
-                      <p className="text-sm">
+                      <p className="text-base text-gray-800">
                         {user.belowPoverty?.verified
                           ? "Verified as below poverty level"
                           : "Verification pending for below poverty level status"}
@@ -1113,21 +1089,18 @@ const UserProfile = () => {
                   ) : (
                     <>
                       <div className="w-3 h-3 rounded-full bg-gray-300 mr-2"></div>
-                      <p className="text-sm text-gray-600">Not applicable</p>
+                      <p className="text-base text-gray-500">Not applicable</p>
                     </>
                   )}
                 </div>
 
                 {user.belowPoverty?.document && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    Document submitted:{" "}
-                    {user.belowPoverty.document.split("/").pop()}
+                  <div className="mt-3 text-sm text-gray-600 bg-white p-2 rounded border border-gray-200 inline-block">
+                    <span className="font-medium">Document submitted:</span> {user.belowPoverty.document.split("/").pop()}
                   </div>
                 )}
               </div>
             </div>
-
-
           </div>
         )}
       </div>
