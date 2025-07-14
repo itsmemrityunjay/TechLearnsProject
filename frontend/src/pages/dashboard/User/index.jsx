@@ -1001,7 +1001,7 @@ const UserProfile = () => {
                   {user.skills.map((skill, index) => (
                     <span
                       key={index}
-                      className="bg-[#013954] bg-opacity-10 text-[#013954] px-3 py-1.5 rounded-full text-sm font-medium"
+                      className="bg-[#013954] bg-opacity-10 text-white px-6 py-3 rounded-full text-sm font-medium"
                     >
                       {skill}
                     </span>

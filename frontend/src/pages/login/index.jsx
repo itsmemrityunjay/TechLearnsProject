@@ -75,8 +75,24 @@ const Login = () => {
                     ? '/api/mentors/login'
                     : '/api/schools/login';
 
+            // Fix: Properly construct the URL to avoid double slashes or missing slashes
+            let apiUrl = import.meta.env.VITE_API_URL || '';
+
+            // Remove trailing slash from base URL if it exists
+            if (apiUrl.endsWith('/')) {
+                apiUrl = apiUrl.slice(0, -1);
+            }
+
+            // Ensure endpoint starts with a slash
+            const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+            // Construct the full URL
+            const fullUrl = `${apiUrl}${normalizedEndpoint}`;
+
+            console.log('Login request to:', fullUrl); // For debugging
+
             const response = await axios.post(
-                `${import.meta.env.VITE_API_URL || ''}${endpoint}`,
+                fullUrl,
                 formData
             );
 
@@ -102,10 +118,33 @@ const Login = () => {
                 navigate('/dashboard');
             }
         } catch (error) {
-            setError(
-                error.response?.data?.message ||
-                'Login failed. Please check your credentials and try again.'
-            );
+            console.error('Login error:', error);
+
+            // Enhanced error message with more context
+            let errorMessage = 'Login failed. Please check your credentials and try again.';
+
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                if (error.response.status === 401) {
+                    errorMessage = 'Invalid credentials. Please check your email and password.';
+                } else if (error.response.status === 404) {
+                    errorMessage = `${userType === 'mentor' ? 'Mentor' : userType === 'school' ? 'School' : 'User'} account not found.`;
+                } else if (error.response.data?.message) {
+                    errorMessage = error.response.data.message;
+                }
+                console.error('Server response:', error.response.data);
+            } else if (error.request) {
+                // The request was made but no response was received
+                errorMessage = 'No response from server. Please check your internet connection and try again.';
+                console.error('No response received:', error.request);
+            } else {
+                // Something happened in setting up the request that triggered an Error
+                errorMessage = `Error: ${error.message}`;
+                console.error('Request error:', error.message);
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
