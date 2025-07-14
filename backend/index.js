@@ -32,12 +32,16 @@ require("./models/competitionModel");
 require("./models/mockTestModel");
 require("./models/notebookModel");
 
-// MongoDB Connection
+// MongoDB Connection with improved timeout handling
 mongoose
   .connect(
     process.env.MONGODB_URI || "mongodb://localhost:27017/your_database_name",
     {
+      useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // Lower timeout to fail faster
+      socketTimeoutMS: 45000, // Socket timeout
+      connectTimeoutMS: 10000, // Connection timeout
     }
   )
   .then(() => {
@@ -58,6 +62,23 @@ mongoose
       }
     }
   });
+
+// Add connection event listeners
+mongoose.connection.on('connecting', () => {
+  console.log('Connecting to MongoDB...');
+});
+
+mongoose.connection.on('connected', () => {
+  console.log('Connected to MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+});
 
 // Define routes
 app.get("/", (req, res) => {
