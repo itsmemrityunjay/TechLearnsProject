@@ -5,11 +5,10 @@ const Razorpay = require("razorpay");
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Initialize Razorpay with better error handling and debugging
+// Initialize Razorpay with better error handling
 let razorpay;
 try {
   // For testing, we'll use a proper Razorpay test key
-  // IMPORTANT: The test key used here is a public test key and not sensitive
   const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_USRBs9xzh6MqbM';
   const key_secret = process.env.RAZORPAY_KEY_SECRET || 'G0a9X0HAcUfgkFIXA3504SrT';
   
@@ -21,14 +20,8 @@ try {
     key_secret,
   });
   
-  // Test the Razorpay connection
-  razorpay.orders.all().then(() => {
-    console.log("✅ Razorpay connection test successful");
-  }).catch(err => {
-    console.error("❌ Razorpay connection test failed:", err.message);
-  });
-  
-  console.log("Razorpay initialized");
+  // Don't test the connection on startup - this can cause issues
+  console.log("Razorpay instance created");
 } catch (error) {
   console.error("Failed to initialize Razorpay:", error);
 }
@@ -80,18 +73,27 @@ const createOrder = async (req, res) => {
       currency: "INR",
       receipt: `course_${courseId}_user_${userId}_${Date.now()}`,
       notes: {
-        courseId: courseId,
-        userId: userId,
+        courseId: courseId.toString(),
+        userId: userId.toString(),
       },
     };
 
     console.log("Creating Razorpay order with options:", options);
 
-    // Create order with proper promise handling
-    const order = await razorpay.orders.create(options);
-    console.log("Razorpay order created:", order);
-
-    res.status(200).json(order);
+    // Create order with better error handling
+    try {
+      const order = await razorpay.orders.create(options);
+      console.log("Razorpay order created:", order);
+      return res.status(200).json(order);
+    } catch (razorpayError) {
+      console.error("Razorpay order creation failed:", razorpayError);
+      return res.status(500).json({
+        message: "Payment gateway error",
+        error: razorpayError.message,
+        code: razorpayError.code || 'unknown'
+      });
+    }
+    
   } catch (error) {
     console.error("Payment order creation error:", error);
     
@@ -113,7 +115,7 @@ const createOrder = async (req, res) => {
     }
     
     // Generic error
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to create payment order",
       error: error.message,
       stack: process.env.NODE_ENV === 'production' ? null : error.stack
@@ -147,8 +149,8 @@ const verifyPayment = async (req, res) => {
       courseId
     });
 
-    // Verify signature
-    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'your_key_secret_here';
+    // Use the same key_secret as in initialization
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'G0a9X0HAcUfgkFIXA3504SrT';
     const generatedSignature = crypto
       .createHmac("sha256", key_secret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -159,16 +161,25 @@ const verifyPayment = async (req, res) => {
     }
 
     // Get payment details from Razorpay
-    const payment = await razorpay.payments.fetch(razorpay_payment_id);
-    console.log("Payment verified:", payment);
+    try {
+      const payment = await razorpay.payments.fetch(razorpay_payment_id);
+      console.log("Payment verified:", payment);
 
-    res.status(200).json({
-      message: "Payment verified successfully",
-      payment: payment,
-    });
+      return res.status(200).json({
+        message: "Payment verified successfully",
+        payment: payment,
+      });
+    } catch (razorpayError) {
+      console.error("Razorpay payment fetch failed:", razorpayError);
+      return res.status(500).json({
+        message: "Payment verification error",
+        error: razorpayError.message
+      });
+    }
+    
   } catch (error) {
     console.error("Payment verification error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to verify payment",
       error: error.message,
     });
