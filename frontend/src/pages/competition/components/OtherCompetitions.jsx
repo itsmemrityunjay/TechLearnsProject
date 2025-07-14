@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTrophy, FaCalendarAlt, FaUsers, FaChevronDown, FaChevronUp, FaExternalLinkAlt } from 'react-icons/fa';
-
+import api from '../../../utils/axiosConfig';
 const OtherCompetitions = () => {
     // State for pagination
     const [visibleCount, setVisibleCount] = useState(4);
@@ -17,7 +17,7 @@ const OtherCompetitions = () => {
             try {
                 setLoading(true);
                 // Use the existing competitions endpoint with a query parameter
-                const response = await fetch('/api/competitions?type=external');
+                const response = await api.get('/api/competitions?type=external');
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);

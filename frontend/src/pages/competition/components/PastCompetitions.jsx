@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTrophy, FaCalendarAlt, FaUsers, FaChevronDown, FaChevronUp, FaExternalLinkAlt, FaChartLine } from 'react-icons/fa';
-
+import api from '../../../utils/axiosConfig';
 const PastCompetitions = () => {
     // State for pagination
     const [visibleCount, setVisibleCount] = useState(4);
@@ -17,7 +17,7 @@ const PastCompetitions = () => {
         const fetchCompetitions = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('/api/competitions');
+                const response = await api.get('/api/competitions');
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);

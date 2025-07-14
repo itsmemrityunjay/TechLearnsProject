@@ -18,20 +18,18 @@ const OurCompetitions = () => {
         const fetchCompetitions = async () => {
             try {
                 setLoading(true);
-                // You can add query params to filter on the server, if backend supports it
+                // Using axios correctly
                 const response = await api.get('/api/competitions?type=internal');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                // With axios, the data is directly available in response.data
+                // No need for response.ok check or response.json()
+                const data = response.data;
 
                 // Get current date for filtering
                 const currentDate = new Date();
 
                 // Filter to only include:
-                // 1. Internal competitions
+                // 1. Internal competitions (this might be redundant since we're already filtering by type=internal in the API call)
                 // 2. Active competitions (end date >= current date)
                 const filteredCompetitions = data.filter(competition => {
                     const endDate = new Date(competition.endDate);
