@@ -66,27 +66,82 @@ const registerUser = async (req, res) => {
 // @access  Public
 const loginUser = async (req, res) => {
   try {
+    console.log("Login attempt for:", req.body.email);
+    
+    // Check if required fields are provided
     const { email, password } = req.body;
-
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+    
+    // Log the request body (excluding password)
+    console.log("Login request data:", { 
+      email, 
+      passwordProvided: !!password 
+    });
+    
     // Find user by email
+    console.log("Searching for user with email:", email);
     const user = await User.findOne({ email });
-
-    // Check if user exists and password matches
-    if (user && (await bcrypt.compare(password, user.password))) {
-      res.json({
+    
+    if (!user) {
+      console.log("User not found:", email);
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+    
+    console.log("User found, checking password");
+    
+    // Validate password format before comparing
+    if (!user.password) {
+      console.error("User has no password hash stored:", user._id);
+      return res.status(500).json({ message: "Account configuration error" });
+    }
+    
+    // Check password match
+    const isMatch = await bcrypt.compare(password, user.password);
+    
+    if (isMatch) {
+      console.log("Password match, generating token for user:", user._id);
+      
+      // Generate token with try/catch to catch any token generation errors
+      let token;
+      try {
+        token = generateToken(user._id, "user");
+      } catch (tokenError) {
+        console.error("Token generation failed:", tokenError);
+        return res.status(500).json({ message: "Authentication error" });
+      }
+      
+      // Send response
+      return res.json({
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         isPremium: user.isPremium,
-        token: generateToken(user._id, "user"),
+        token
       });
     } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      console.log("Password mismatch for user:", email);
+      return res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Login error details:", error);
+    console.error("Error stack:", error.stack);
+    
+    // Provide more specific error messages based on error type
+    if (error.name === 'MongoError' || error.name === 'MongooseError') {
+      return res.status(500).json({ message: "Database connection error" });
+    } else if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: "Invalid data format" });
+    } else if (error.name === 'SyntaxError') {
+      return res.status(400).json({ message: "Invalid request format" });
+    }
+    
+    res.status(500).json({
+      message: "Server error during login",
+      error: error.message
+    });
   }
 };
 

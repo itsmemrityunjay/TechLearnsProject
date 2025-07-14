@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../utils/axiosConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Import your logo
@@ -167,18 +167,33 @@ const Signup = () => {
             }
 
             // Ensure API URL matches your backend
-            const response = await axios.post(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${endpoint}`,
-                registrationData
-            );
+            const response = await api.post(endpoint, registrationData);
 
             navigate('/login');
         } catch (error) {
             console.error('Registration error:', error);
-            setError(
-                error.response?.data?.message ||
-                'Registration failed. Please try again with different information.'
-            );
+
+            let errorMessage = 'Registration failed. Please try again.';
+
+            if (error.response) {
+                // Server responded with error status
+                if (error.response.status === 409) {
+                    errorMessage = 'This email is already registered. Please use another email or try logging in.';
+                } else if (error.response.status === 400) {
+                    errorMessage = error.response.data?.message || 'Invalid registration data.';
+                } else if (error.response.data?.message) {
+                    errorMessage = error.response.data.message;
+                }
+                console.error('Server response:', error.response.data);
+            } else if (error.request) {
+                // Request made but no response
+                errorMessage = 'No response from server. Please check your internet connection.';
+            } else {
+                // Other error
+                errorMessage = `Error: ${error.message}`;
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
