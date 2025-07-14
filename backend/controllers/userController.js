@@ -80,9 +80,19 @@ const loginUser = async (req, res) => {
       passwordProvided: !!password 
     });
     
-    // Find user by email
-    console.log("Searching for user with email:", email);
-    const user = await User.findOne({ email });
+    // Find user by email - adding a try/catch specifically for database operations
+    let user;
+    try {
+      console.log("Searching for user with email:", email);
+      user = await User.findOne({ email });
+      console.log("Database query completed");
+    } catch (dbError) {
+      console.error("Database error during user lookup:", dbError);
+      return res.status(500).json({ 
+        message: "Unable to access user database", 
+        error: dbError.message 
+      });
+    }
     
     if (!user) {
       console.log("User not found:", email);
@@ -97,23 +107,40 @@ const loginUser = async (req, res) => {
       return res.status(500).json({ message: "Account configuration error" });
     }
     
-    // Check password match
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Check password match with additional error handling
+    let isMatch;
+    try {
+      console.log("Comparing passwords using bcrypt");
+      isMatch = await bcrypt.compare(password, user.password);
+      console.log("Password comparison completed");
+    } catch (bcryptError) {
+      console.error("bcrypt error during password comparison:", bcryptError);
+      return res.status(500).json({ 
+        message: "Error verifying password", 
+        error: bcryptError.message 
+      });
+    }
     
     if (isMatch) {
       console.log("Password match, generating token for user:", user._id);
       
-      // Generate token with try/catch to catch any token generation errors
+      // Generate token with enhanced error handling
       let token;
       try {
         token = generateToken(user._id, "user");
+        console.log("Token generated successfully");
       } catch (tokenError) {
         console.error("Token generation failed:", tokenError);
-        return res.status(500).json({ message: "Authentication error" });
+        console.error("JWT_SECRET available:", !!process.env.JWT_SECRET);
+        return res.status(500).json({ 
+          message: "Authentication error", 
+          error: tokenError.message 
+        });
       }
       
       // Send response
-      return res.json({
+      console.log("Sending successful login response");
+      return res.status(200).json({
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -130,15 +157,19 @@ const loginUser = async (req, res) => {
     console.error("Error stack:", error.stack);
     
     // Provide more specific error messages based on error type
-    if (error.name === 'MongoError' || error.name === 'MongooseError') {
+    if (error.name === 'MongoError' || error.name === 'MongooseError' || error.name === 'MongoServerError') {
       return res.status(500).json({ message: "Database connection error" });
     } else if (error.name === 'ValidationError') {
       return res.status(400).json({ message: "Invalid data format" });
     } else if (error.name === 'SyntaxError') {
       return res.status(400).json({ message: "Invalid request format" });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(500).json({ message: "Token generation error" });
+    } else if (error.name === 'BcryptError' || error.code === 'BCRYPT_ERROR') {
+      return res.status(500).json({ message: "Password verification error" });
     }
     
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error during login",
       error: error.message
     });
