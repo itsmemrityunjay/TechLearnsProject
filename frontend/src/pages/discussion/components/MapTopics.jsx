@@ -52,15 +52,13 @@ const TopicsGrid = () => {
         const fetchTopics = async () => {
             try {
                 setLoading(true);
+                // Using axios correctly
                 const response = await api.get('/api/topics?includeDiscussions=true');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
+                // With axios, data is already in response.data
+                const data = response.data;
 
-                const data = await response.json();
-
-                // Sort topics by creation date (newest first)
+                // Sort topics by creation date
                 const sortedTopics = data.sort((a, b) =>
                     new Date(b.createdAt) - new Date(a.createdAt)
                 );
@@ -177,28 +175,22 @@ const TopicsGrid = () => {
         setFilteredTopics(results);
     }, [searchQuery, selectedCategory, topics]);
 
-    // Update the handleTopicClick function - remove the problematic API call
+    // Update the handleTopicClick function
     const handleTopicClick = async (topicId) => {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
 
-            // Fetch the complete topic with all details
+            // Fetch the complete topic with all details using axios correctly
             const response = await api.get(`/api/topics/${topicId}`, {
                 headers: token ? {
                     'Authorization': `Bearer ${token}`
                 } : {}
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const topicData = await response.json();
+            // With axios, data is in response.data
+            const topicData = response.data;
             setCurrentTopic(topicData);
-
-            // Remove the problematic API call that was here
-            // We'll manage likes client-side instead
             setShowModal(true);
         } catch (err) {
             console.error('Error fetching topic details:', err);
@@ -232,16 +224,14 @@ const TopicsGrid = () => {
             userFetchQueue.add(userId);
             const token = localStorage.getItem('token');
 
-            fetch(`/api/users/${userId}`, {
+            api.get(`/api/users/${userId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             })
                 .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Failed to fetch user data');
-                })
-                .then(userData => {
+                    // With axios, data is in response.data
+                    const userData = response.data;
                     setUserCache(prev => ({
                         ...prev,
                         [userId]: userData
@@ -267,24 +257,18 @@ const TopicsGrid = () => {
             setReplyLoading(true);
             const token = localStorage.getItem('token');
 
-            const response = await api.get(`/api/topics/${currentTopic._id}/questions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    content: replyText
-                })
-            });
+            // Use axios.post instead of api.get with method: 'POST'
+            const response = await api.post(`/api/topics/${currentTopic._id}/questions`,
+                { content: replyText },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to submit reply');
-            }
-
-            // Get the response data with the new question ID
-            const responseData = await response.json();
+            // With axios, data is in response.data
+            const responseData = response.data;
 
             // Optimistically update the UI with the new comment
             const updatedTopic = { ...currentTopic };
@@ -839,7 +823,8 @@ const TopicsGrid = () => {
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="flex items-center">
                                                 <div className="w-10 h-10 bg-[#013954] rounded-full flex items-center justify-center text-white font-bold mr-3">
-                                                    {(currentTopic.createdBy?.name || currentTopic.author?.name || 'A').charAt(0).toUpperCase()}
+                                                    {(currentTopic.createdBy?.name || currentTopic.author?.name || 'A').charAt(0).toUpperCase()
+                                                    }
                                                 </div>
                                                 <div>
                                                     <div className="font-medium text-[#013954]">
