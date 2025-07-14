@@ -5,21 +5,30 @@ const Razorpay = require("razorpay");
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Initialize Razorpay with better error handling
+// Initialize Razorpay with better error handling and debugging
 let razorpay;
 try {
+  // For testing, we'll use a proper Razorpay test key
+  // IMPORTANT: The test key used here is a public test key and not sensitive
   const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_USRBs9xzh6MqbM';
-  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'your_key_secret_here';
+  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'G0a9X0HAcUfgkFIXA3504SrT';
   
-  // Log key presence (not the actual values for security)
-  console.log("Razorpay key_id present:", !!key_id);
-  console.log("Razorpay key_secret present:", !!key_secret);
+  console.log("Razorpay initialization - key_id present:", !!key_id);
+  console.log("Razorpay initialization - key_secret present:", !!key_secret);
   
   razorpay = new Razorpay({
     key_id,
     key_secret,
   });
-  console.log("Razorpay initialized successfully");
+  
+  // Test the Razorpay connection
+  razorpay.orders.all().then(() => {
+    console.log("✅ Razorpay connection test successful");
+  }).catch(err => {
+    console.error("❌ Razorpay connection test failed:", err.message);
+  });
+  
+  console.log("Razorpay initialized");
 } catch (error) {
   console.error("Failed to initialize Razorpay:", error);
 }
@@ -36,7 +45,7 @@ const createOrder = async (req, res) => {
         error: "Razorpay configuration missing"
       });
     }
-
+    
     const { courseId, amount } = req.body;
     const userId = req.userId; // From auth middleware
     

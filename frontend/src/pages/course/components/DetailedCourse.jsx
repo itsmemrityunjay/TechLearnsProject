@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -8,7 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import api from '../../../utils/axiosConfig';
 
 const DetailedCourse = () => {
-    const { currentUser } = useAuth();
+    const { currentUser, setCurrentUser } = useAuth();
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -23,75 +23,144 @@ const DetailedCourse = () => {
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+    // Helper function to ensure auth token is attached to requests
+    const getAuthHeaders = useCallback(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+
+        // Set the token in the api instance
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        return token;
+    }, []);
+
+    // Verify token validity
+    const validateToken = useCallback(() => {
+        const token = getAuthHeaders();
+        if (!token) {
+            // If no token exists, clear user
+            setCurrentUser && setCurrentUser(null);
+            return false;
+        }
+        return true;
+    }, [getAuthHeaders, setCurrentUser]);
+
+    // Check enrollment status using multiple methods
+    const checkEnrollmentStatus = useCallback(async () => {
+        if (!currentUser || !id) return false;
+
+        try {
+            // Ensure token is set
+            if (!validateToken()) return false;
+
+            // Method 1: Check user profile
+            try {
+                console.log("Checking enrollment via user profile");
+                const userResponse = await api.get('/api/users/profile');
+
+                // First check enrolledCourses
+                if (userResponse.data?.enrolledCourses &&
+                    Array.isArray(userResponse.data.enrolledCourses)) {
+
+                    const enrolled = userResponse.data.enrolledCourses.some(courseId =>
+                        courseId === id ||
+                        (typeof courseId === 'object' && courseId._id === id) ||
+                        (courseId && courseId.toString() === id)
+                    );
+
+                    if (enrolled) return true;
+                }
+
+                // Next check registeredCourses format
+                if (userResponse.data?.registeredCourses &&
+                    Array.isArray(userResponse.data.registeredCourses)) {
+
+                    const enrolled = userResponse.data.registeredCourses.some(course => {
+                        const courseId = course.courseId || course._id || course.id || course;
+                        return courseId === id ||
+                            (courseId && courseId.toString() === id) ||
+                            (typeof courseId === 'object' && courseId._id === id);
+                    });
+
+                    if (enrolled) return true;
+                }
+            } catch (err) {
+                console.log("User profile check failed:", err.message);
+                // Continue to next method if this fails
+            }
+
+            // Method 2: Direct API endpoint for this course's enrollment status
+            try {
+                console.log("Checking enrollment via direct course enrollment endpoint");
+                const enrollmentCheck = await api.get(`/api/courses/${id}/check-enrollment`);
+                if (enrollmentCheck.data && enrollmentCheck.data.isEnrolled) {
+                    return true;
+                }
+            } catch (err) {
+                console.log("Course enrollment check failed:", err.message);
+                // Continue to backup method
+            }
+
+            // Method 3: Fallback to localStorage check
+            try {
+                console.log("Checking enrollment via localStorage");
+                const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+                if (enrolledCourses.includes(id)) {
+                    return true;
+                }
+            } catch (err) {
+                console.log("localStorage enrollment check failed:", err.message);
+            }
+
+            return false;
+
+        } catch (err) {
+            console.error("All enrollment checks failed:", err);
+            return false;
+        }
+    }, [currentUser, id, validateToken]);
+
     // Fetch course details
     useEffect(() => {
         const fetchCourse = async () => {
             try {
                 setLoading(true);
                 const response = await api.get(`/api/courses/${id}`);
-                setCourse(response.data);
+
+                // Process image URLs to ensure they're properly formed
+                const courseData = response.data;
+                if (courseData?.thumbnail && courseData.thumbnail.startsWith('/')) {
+                    // Convert relative URLs to absolute
+                    const baseUrl = import.meta.env.VITE_API_URL ||
+                        window.location.origin.includes('localhost') ?
+                        'http://localhost:3000' :
+                        'https://tech-learns-project-q8rk.vercel.app';
+
+                    courseData.thumbnail = `${baseUrl}${courseData.thumbnail}`;
+                }
+
+                // Similarly, process content thumbnails/videos
+                if (courseData?.content && Array.isArray(courseData.content)) {
+                    courseData.content = courseData.content.map(item => {
+                        if (item.videoUrl && item.videoUrl.startsWith('/')) {
+                            const baseUrl = import.meta.env.VITE_API_URL ||
+                                window.location.origin.includes('localhost') ?
+                                'http://localhost:3000' :
+                                'https://tech-learns-project-q8rk.vercel.app';
+
+                            item.videoUrl = `${baseUrl}${item.videoUrl}`;
+                        }
+                        return item;
+                    });
+                }
+
+                setCourse(courseData);
 
                 // Check if user is enrolled in this course
                 if (currentUser) {
-                    try {
-                        const userResponse = await api.get('/api/users/me');
-
-                        // First check if user data includes the direct enrollmentStatus
-                        if (userResponse.data.enrolledCourses &&
-                            Array.isArray(userResponse.data.enrolledCourses)) {
-
-                            // Check different possible formats of course IDs
-                            const enrolled = userResponse.data.enrolledCourses.some(courseId =>
-                                courseId === id || courseId._id === id || courseId.toString() === id
-                            );
-
-                            if (enrolled) {
-                                setIsEnrolled(true);
-                                return;
-                            }
-                        }
-
-                        // Next check registeredCourses format
-                        if (userResponse.data.registeredCourses &&
-                            Array.isArray(userResponse.data.registeredCourses)) {
-
-                            const enrolled = userResponse.data.registeredCourses.some(course => {
-                                // Handle different possible ID formats
-                                const courseId = course.courseId || course._id || course.id || course;
-                                return courseId === id ||
-                                    (courseId && courseId.toString() === id) ||
-                                    (typeof courseId === 'object' && courseId._id === id);
-                            });
-
-                            if (enrolled) {
-                                setIsEnrolled(true);
-                                return;
-                            }
-                        }
-
-                        // As a final check, get the course directly to check enrollment
-                        const courseResponse = await api.get(`/api/courses/${id}/enrollment-status`);
-                        if (courseResponse.data && courseResponse.data.isEnrolled) {
-                            setIsEnrolled(true);
-                            return;
-                        }
-
-                        setIsEnrolled(false);
-
-                    } catch (err) {
-                        console.error('Failed to check enrollment status:', err);
-
-                        // Add fallback check in case the /me endpoint fails
-                        try {
-                            const enrollmentCheck = await api.get(`/api/courses/${id}/enrollment-status`);
-                            if (enrollmentCheck.data && enrollmentCheck.data.isEnrolled) {
-                                setIsEnrolled(true);
-                            }
-                        } catch (fallbackErr) {
-                            console.error('Fallback enrollment check failed:', fallbackErr);
-                        }
-                    }
+                    const enrolled = await checkEnrollmentStatus();
+                    setIsEnrolled(enrolled);
                 }
+
             } catch (err) {
                 console.error('Error fetching course:', err);
                 setError('Failed to load course details. Please try again later.');
@@ -101,22 +170,7 @@ const DetailedCourse = () => {
         };
 
         fetchCourse();
-    }, [id, currentUser]);
-
-    // Add this useEffect after your existing one
-    useEffect(() => {
-        // Check localStorage for enrolled courses as a backup
-        if (currentUser && id) {
-            try {
-                const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
-                if (enrolledCourses.includes(id)) {
-                    setIsEnrolled(true);
-                }
-            } catch (err) {
-                console.error('Error checking local enrollment data:', err);
-            }
-        }
-    }, [currentUser, id]);
+    }, [id, currentUser, checkEnrollmentStatus]);
 
     // Toggle section expansion
     const toggleSection = (index) => {
@@ -150,16 +204,6 @@ const DetailedCourse = () => {
         }
 
         return `${totalMinutes} min`;
-    };
-
-    // Add this function before the handleEnroll
-    const validateToken = () => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setCurrentUser(null); // Clear user if no token exists
-            return false;
-        }
-        return true;
     };
 
     // Handle enrollment
@@ -206,6 +250,7 @@ const DetailedCourse = () => {
             // More specific error handling
             if (err.response?.status === 401) {
                 setEnrollmentError("Authentication failed. Please try logging in again.");
+                setTimeout(() => setShowLoginPrompt(true), 1500);
             } else if (err.response?.status === 403) {
                 setEnrollmentError("You don't have permission to enroll in this course.");
             } else {
@@ -231,11 +276,16 @@ const DetailedCourse = () => {
         loadRazorpayScript();
     }, []);
 
-    // Add this function to handle payment for premium courses
+    // Handle payment for premium courses
     const handlePaymentComplete = async () => {
         try {
             setEnrolling(true);
             setEnrollmentError(null);
+
+            // Ensure auth token is set
+            if (!validateToken()) {
+                throw new Error("Authentication token missing or invalid");
+            }
 
             // Verify Razorpay is loaded
             if (!window.Razorpay) {
@@ -263,6 +313,11 @@ const DetailedCourse = () => {
                 handler: async function (response) {
                     try {
                         console.log("Payment completed by user:", response);
+
+                        // Re-validate token before verification
+                        if (!validateToken()) {
+                            throw new Error("Session expired during payment");
+                        }
 
                         // Step 3: Verify payment with your backend
                         const verificationResponse = await api.post('/api/payments/verify', {
@@ -329,6 +384,11 @@ const DetailedCourse = () => {
                 // The request was made and the server responded with a status code
                 console.error('Server error response:', err.response.data);
                 errorMessage = err.response.data?.message || 'Server error during payment initialization';
+
+                if (err.response.status === 401) {
+                    errorMessage = "Your session has expired. Please log in again.";
+                    setTimeout(() => setShowLoginPrompt(true), 1500);
+                }
             } else if (err.request) {
                 // The request was made but no response was received
                 console.error('No response received:', err.request);
