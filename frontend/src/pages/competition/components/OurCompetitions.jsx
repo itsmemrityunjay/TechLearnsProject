@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTrophy, FaCalendarAlt, FaUsers, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import api from '../../../utils/axiosConfig';
 
 const OurCompetitions = () => {
     // State for pagination
@@ -18,7 +19,7 @@ const OurCompetitions = () => {
             try {
                 setLoading(true);
                 // You can add query params to filter on the server, if backend supports it
-                const response = await fetch('/api/competitions?type=internal');
+                const response = await api.get('/api/competitions?type=internal');
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
