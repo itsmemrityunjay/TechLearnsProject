@@ -37,16 +37,42 @@ const createTopic = async (req, res) => {
 // @route   GET /api/topics
 // @access  Public
 const getTopics = async (req, res) => {
+  console.log("GET /api/topics endpoint hit with query:", req.query);
   try {
-    const topics = await Topic.find({}).populate({
+    // Create a base query
+    let query = Topic.find({});
+
+    // Check if we need to include discussions
+    if (req.query.includeDiscussions === "true") {
+      // Populate discussions with necessary fields
+      query = query
+        .populate({
+          path: "discussions.question.askedBy",
+          select: "name firstName lastName",
+        })
+        .populate({
+          path: "discussions.answers.answeredBy",
+          select: "name firstName lastName",
+        });
+    }
+
+    // Always populate creator information
+    query = query.populate({
       path: "createdBy",
-      select:
-        req.query.creatorModel === "Mentor" ? "name" : "firstName lastName",
+      select: "name firstName lastName",
     });
+
+    const topics = await query;
     res.json(topics);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error fetching topics:", error);
+    console.error("Error details:", error);
+    console.error("Error stack:", error.stack);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
+    });
   }
 };
 

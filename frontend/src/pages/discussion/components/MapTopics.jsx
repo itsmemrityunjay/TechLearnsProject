@@ -326,21 +326,19 @@ const TopicsGrid = () => {
             setAnswerLoading(true);
             const token = localStorage.getItem('token');
 
-            const response = await api.get(`/api/topics/${currentTopic._id}/questions/${questionId}/answers`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    content: answerText
-                })
-            });
+            // Use api.post instead of api.get with method: 'POST'
+            const response = await api.post(
+                `/api/topics/${currentTopic._id}/questions/${questionId}/answers`,
+                { content: answerText },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to submit answer');
-            }
+            // Get data directly from response.data (not response.json())
+            const responseData = response.data;
 
             // Optimistically update the UI with the new answer
             const updatedTopic = { ...currentTopic };
@@ -401,15 +399,19 @@ const TopicsGrid = () => {
             const responseKey = `${currentTopic._id}-${discussionId}`;
             const isLiked = likedResponses.has(responseKey);
 
-            const response = await api.get(`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {
-                method: isLiked ? 'DELETE' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update like status');
+            // Use the correct HTTP method directly
+            if (isLiked) {
+                await api.delete(`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            } else {
+                await api.post(`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {}, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
             }
 
             // Update local state
@@ -474,15 +476,19 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
             const isLiked = likedTopics.has(topicId);
 
-            const response = await api.get(`/api/topics/${topicId}/like`, {
-                method: isLiked ? 'DELETE' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update like status');
+            // Use the correct HTTP method directly
+            if (isLiked) {
+                await api.delete(`/api/topics/${topicId}/like`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            } else {
+                await api.post(`/api/topics/${topicId}/like`, {}, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
             }
 
             // Update local state
