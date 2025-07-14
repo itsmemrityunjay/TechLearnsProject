@@ -5,6 +5,7 @@ import {
     FaThumbsUp, FaReply, FaShare, FaBookmark, FaEllipsisH, FaChevronDown
 } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import api from '../../../utils/api'; // Import the axios instance
 
 const TopicsGrid = () => {
     // State management
@@ -51,13 +52,11 @@ const TopicsGrid = () => {
         const fetchTopics = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('/api/topics?includeDiscussions=true');
+                // Replace fetch with axios
+                const response = await api.get('/api/topics?includeDiscussions=true');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                // With axios, data is already available in response.data
+                const data = response.data;
 
                 // Sort topics by creation date (newest first)
                 const sortedTopics = data.sort((a, b) =>
@@ -182,22 +181,16 @@ const TopicsGrid = () => {
             setLoading(true);
             const token = localStorage.getItem('token');
 
-            // Fetch the complete topic with all details
-            const response = await fetch(`/api/topics/${topicId}`, {
+            // Fetch the complete topic with all details using axios
+            const response = await api.get(`/api/topics/${topicId}`, {
                 headers: token ? {
                     'Authorization': `Bearer ${token}`
                 } : {}
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const topicData = await response.json();
+            // With axios, data is directly in response.data
+            const topicData = response.data;
             setCurrentTopic(topicData);
-
-            // Remove the problematic API call that was here
-            // We'll manage likes client-side instead
             setShowModal(true);
         } catch (err) {
             console.error('Error fetching topic details:', err);
@@ -231,16 +224,14 @@ const TopicsGrid = () => {
             userFetchQueue.add(userId);
             const token = localStorage.getItem('token');
 
-            fetch(`/api/users/${userId}`, {
+            api.get(`/api/users/${userId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             })
                 .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Failed to fetch user data');
-                })
-                .then(userData => {
+                    // With axios, no need to check response.ok
+                    const userData = response.data;
                     setUserCache(prev => ({
                         ...prev,
                         [userId]: userData
@@ -266,24 +257,17 @@ const TopicsGrid = () => {
             setReplyLoading(true);
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`/api/topics/${currentTopic._id}/questions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    content: replyText
-                })
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to submit reply');
-            }
+            const response = await api.post(`/api/topics/${currentTopic._id}/questions`,
+                { content: replyText },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
 
             // Get the response data with the new question ID
-            const responseData = await response.json();
+            const responseData = response.data;
 
             // Optimistically update the UI with the new comment
             const updatedTopic = { ...currentTopic };
@@ -341,21 +325,14 @@ const TopicsGrid = () => {
             setAnswerLoading(true);
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`/api/topics/${currentTopic._id}/questions/${questionId}/answers`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    content: answerText
-                })
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to submit answer');
-            }
+            const response = await api.post(`/api/topics/${currentTopic._id}/questions/${questionId}/answers`,
+                { content: answerText },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
 
             // Optimistically update the UI with the new answer
             const updatedTopic = { ...currentTopic };
@@ -416,16 +393,13 @@ const TopicsGrid = () => {
             const responseKey = `${currentTopic._id}-${discussionId}`;
             const isLiked = likedResponses.has(responseKey);
 
-            const response = await fetch(`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {
-                method: isLiked ? 'DELETE' : 'POST',
+            // Use DELETE method directly with axios
+            const method = isLiked ? 'delete' : 'post';
+            await api[method](`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {}, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to update like status');
-            }
 
             // Update local state
             const newLikedResponses = new Set(likedResponses);
@@ -489,16 +463,13 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
             const isLiked = likedTopics.has(topicId);
 
-            const response = await fetch(`/api/topics/${topicId}/like`, {
-                method: isLiked ? 'DELETE' : 'POST',
+            // Use DELETE method directly with axios
+            const method = isLiked ? 'delete' : 'post';
+            await api[method](`/api/topics/${topicId}/like`, {}, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to update like status');
-            }
 
             // Update local state
             const newLikedTopics = new Set(likedTopics);
@@ -543,16 +514,13 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
             const isSaved = savedTopics.has(topicId);
 
-            const response = await fetch(`/api/topics/${topicId}/bookmark`, {
-                method: isSaved ? 'DELETE' : 'POST',
+            // Use DELETE method directly with axios
+            const method = isSaved ? 'delete' : 'post';
+            await api[method](`/api/topics/${topicId}/bookmark`, {}, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to update bookmark status');
-            }
 
             // Update local state
             const newSavedTopics = new Set(savedTopics);
