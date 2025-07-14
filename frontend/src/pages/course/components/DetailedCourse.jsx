@@ -186,7 +186,7 @@ const DetailedCourse = () => {
             setEnrolling(true);
             setEnrollmentError(null);
 
-            // Use api instead of axios
+            // For free courses, directly enroll
             await api.post(`/api/courses/${id}/enroll`);
 
             setIsEnrolled(true);
@@ -216,28 +216,49 @@ const DetailedCourse = () => {
         }
     };
 
-    // Handle payment completion
+    // Import Razorpay script in your component
+    useEffect(() => {
+        const loadRazorpayScript = async () => {
+            return new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.body.appendChild(script);
+            });
+        };
+
+        loadRazorpayScript();
+    }, []);
+
+    // Add this function to handle payment for premium courses
     const handlePaymentComplete = async () => {
         try {
             setEnrolling(true);
             setEnrollmentError(null);
 
+            // Verify Razorpay is loaded
+            if (!window.Razorpay) {
+                throw new Error("Razorpay SDK failed to load");
+            }
+
             // Step 1: Create an order on your backend
             const orderResponse = await api.post(`/api/payments/create-order`, {
                 courseId: id,
-                amount: course.price * 100 // Razorpay expects amount in paise
+                amount: Math.round(course.price * 100) // Razorpay expects amount in paise
             });
 
+            // Step 2: Initialize Razorpay payment
             const options = {
-                key: process.env.REACT_APP_RAZORPAY_KEY_ID || "rzp_test_USRBs9xzh6MqbM",
-                amount: course.price * 100, // Amount in paise
+                key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_USRBs9xzh6MqbM", // Use env variable
+                amount: Math.round(course.price * 100), // Amount in paise
                 currency: "INR",
-                name: "TechLeaRNS",
+                name: "TechLearns",
                 description: `Enrollment for ${course.title}`,
                 order_id: orderResponse.data.id,
                 handler: async function (response) {
                     try {
-                        // Step 2: Verify payment with your backend
+                        // Step 3: Verify payment with your backend
                         const verificationResponse = await api.post('/api/payments/verify', {
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_order_id: response.razorpay_order_id,
@@ -245,7 +266,7 @@ const DetailedCourse = () => {
                             courseId: id
                         });
 
-                        // Step 3: If verification succeeds, enroll the user
+                        // Step 4: If verification succeeds, enroll the user
                         if (verificationResponse.status === 200) {
                             const enrollResponse = await api.post(`/api/courses/${id}/enroll`, {
                                 paymentCompleted: true,
@@ -262,12 +283,11 @@ const DetailedCourse = () => {
                                 localStorage.setItem('enrolledCourses', JSON.stringify(enrolledCourses));
                             }
 
+                            // Success notification
                             alert("Payment successful! You're now enrolled in this course.");
-                        } else {
-                            setEnrollmentError("Payment verification failed. Please contact support.");
                         }
                     } catch (err) {
-                        console.error("Payment or enrollment error:", err);
+                        console.error("Payment verification error:", err);
                         setEnrollmentError(err.response?.data?.message || "Payment verification failed. Please contact support.");
                     } finally {
                         setEnrolling(false);
@@ -276,10 +296,15 @@ const DetailedCourse = () => {
                 prefill: {
                     name: currentUser?.firstName + " " + currentUser?.lastName || "",
                     email: currentUser?.email || "",
-                    contact: currentUser?.phone || ""
+                    contact: currentUser?.contactNumber || ""
                 },
                 theme: {
-                    color: "#013954"
+                    color: "#013954" // Your primary color
+                },
+                modal: {
+                    ondismiss: function () {
+                        setEnrolling(false);
+                    }
                 }
             };
 
@@ -360,6 +385,7 @@ const DetailedCourse = () => {
                     <button
                         onClick={() => setShowPaymentModal(false)}
                         className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                        disabled={enrolling}
                     >
                         Cancel
                     </button>
@@ -368,7 +394,13 @@ const DetailedCourse = () => {
                         className="px-4 py-2 bg-[#f99e1c] text-white rounded-md hover:bg-[#f99e1c]/90"
                         disabled={enrolling}
                     >
-                        {enrolling ? 'Processing...' : `Pay ₹${Math.round(course?.price * 1.18) || 0}`}
+                        {enrolling ? (
+                            <>
+                                <span className="inline-block animate-spin mr-2">⟳</span> Processing...
+                            </>
+                        ) : (
+                            `Pay ₹${Math.round(course?.price * 1.18) || 0}`
+                        )}
                     </button>
                 </div>
             </motion.div>
@@ -671,8 +703,8 @@ const DetailedCourse = () => {
                             {course?.isPremium && (
                                 <div className="mb-4">
                                     <div className="flex items-baseline justify-between mb-1">
+                                        <span className="text-gray-500 text-sm">Course Fee</span>
                                         <span className="text-3xl font-bold text-[#013954]">₹{course.price}</span>
-                                        {/* You can add original price or discount here if needed */}
                                     </div>
                                 </div>
                             )}
@@ -692,8 +724,8 @@ const DetailedCourse = () => {
                                     onClick={handleEnroll}
                                     disabled={enrolling}
                                     className={`w-full py-3 rounded-md font-medium flex items-center justify-center ${course?.isPremium
-                                        ? 'bg-[#f99e1c] text-white hover:bg-[#f99e1c]/90'
-                                        : 'bg-[#013954] text-white hover:bg-[#013954]/90'
+                                            ? 'bg-[#f99e1c] text-white hover:bg-[#f99e1c]/90'
+                                            : 'bg-[#013954] text-white hover:bg-[#013954]/90'
                                         }`}
                                 >
                                     {enrolling ? (
@@ -720,14 +752,6 @@ const DetailedCourse = () => {
                             <div className="mt-6">
                                 <h4 className="font-medium text-gray-700 mb-3">This course includes:</h4>
                                 <ul className="space-y-2">
-                                    <li className="flex items-start">
-                                        <svg className="mt-1 h-4 w-4 text-[#f99e1c]" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="ml-2 text-gray-700">
-                                            {course?.content?.length || 0} lessons
-                                        </span>
-                                    </li>
                                     <li className="flex items-start">
                                         <svg className="mt-1 h-4 w-4 text-[#f99e1c]" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

@@ -19,24 +19,44 @@ const createOrder = async (req, res) => {
     const { courseId, amount } = req.body;
     const userId = req.userId; // From auth middleware
 
+    if (!courseId || !amount) {
+      return res.status(400).json({ 
+        message: "Missing required fields", 
+        required: "courseId and amount" 
+      });
+    }
+
     // Validate course exists
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
 
+    // Optional: Verify amount matches course price
+    const expectedAmount = Math.round(course.price * 100); // Convert to paise
+    if (amount !== expectedAmount) {
+      return res.status(400).json({ 
+        message: "Amount mismatch", 
+        expected: expectedAmount,
+        received: amount
+      });
+    }
+
     // Create Razorpay order
     const options = {
-      amount: amount, // amount in smallest currency unit (paise)
+      amount: amount,
       currency: "INR",
-      receipt: `course_${courseId}_user_${userId}`,
+      receipt: `course_${courseId}_user_${userId}_${Date.now()}`,
       notes: {
         courseId: courseId,
         userId: userId,
       },
     };
 
+    console.log("Creating Razorpay order with options:", options);
+
     const order = await razorpay.orders.create(options);
+    console.log("Razorpay order created:", order);
 
     res.status(200).json(order);
   } catch (error) {
