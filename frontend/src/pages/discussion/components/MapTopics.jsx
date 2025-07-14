@@ -544,15 +544,19 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
             const isSaved = savedTopics.has(topicId);
 
-            const response = await api.get(`/api/topics/${topicId}/bookmark`, {
-                method: isSaved ? 'DELETE' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update bookmark status');
+            // Use the correct HTTP method directly in axios
+            if (isSaved) {
+                await api.delete(`/api/topics/${topicId}/bookmark`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            } else {
+                await api.post(`/api/topics/${topicId}/bookmark`, {}, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
             }
 
             // Update local state

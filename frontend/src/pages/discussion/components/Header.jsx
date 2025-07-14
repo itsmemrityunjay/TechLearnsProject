@@ -51,15 +51,15 @@ const Header = () => {
             };
 
             // Submit form
-            const response = await api.get('/api/topics', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
+            const response = await api.post('/api/topics',
+                {
                     ...formData,
                     tags: tagsArray
-                }),
-                credentials: 'include'
-            });
+                },
+                {
+                    headers
+                }
+            );
 
             if (!response.ok) {
                 const data = await response.json();
