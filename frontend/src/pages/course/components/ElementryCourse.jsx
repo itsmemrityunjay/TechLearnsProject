@@ -59,7 +59,7 @@ const ElementryCourse = () => {
             }
 
             // Fetch courses
-            const response = await axios.get(`/api/courses?${queryParams.toString()}`);
+            const response = await api.get(`/api/courses?${queryParams.toString()}`);
             let fetchedCourses = response.data;
 
             // METHOD 2: Client-side filtering if the backend doesn't support complex queries

@@ -49,7 +49,7 @@ const SearchCourse = () => {
         setError(null);
 
         try {
-            const response = await axios.get(`/api/courses?keyword=${encodeURIComponent(keyword)}`);
+            const response = await api.get(`/api/courses?keyword=${encodeURIComponent(keyword)}`);
             setCourses(response.data.slice(0, 6)); // Limit to 6 results for the dropdown
         } catch (err) {
             console.error('Search error:', err);

@@ -59,7 +59,7 @@ const MentorDashboard = () => {
             try {
                 // Fetch mentor profile data
                 console.log("Fetching mentor profile...");
-                const { data: profileData } = await axios.get(
+                const { data: profileData } = await api.get(
                     `${API_BASE_URL}/api/mentors/profile`,
                     config
                 );
@@ -73,7 +73,7 @@ const MentorDashboard = () => {
 
                 // Fetch mentor's courses - this is the key change
                 console.log("Fetching mentor courses...");
-                const { data: coursesData } = await axios.get(
+                const { data: coursesData } = await api.get(
                     `${API_BASE_URL}/api/mentors/courses`,
                     config
                 );

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../../context/AuthContext';
 import axios from 'axios';
+import api from '../../../utils/axiosConfig'
 import {
     FaTrophy, FaCalendarAlt, FaUsers, FaUserCheck, FaClock,
     FaEdit, FaChartLine, FaMedal, FaList, FaUpload, FaGithub,
@@ -58,7 +59,7 @@ const CompetitionById = () => {
         const getCompetition = async () => {
             try {
                 setLoading(true);
-                const res = await axios.get(`/api/competitions/${id}`);
+                const res = await api.get(`/api/competitions/${id}`);
                 setCompetition(res.data);
 
                 // If we have form data from an edit, populate it
@@ -135,7 +136,7 @@ const CompetitionById = () => {
             });
 
             // Refresh competition data to update UI
-            const res = await axios.get(`/api/competitions/${id}`);
+            const res = await api.get(`/api/competitions/${id}`);
             setCompetition(res.data);
 
         } catch (err) {
@@ -192,7 +193,7 @@ const CompetitionById = () => {
             setSubmitSuccess(true);
 
             // Refresh competition data
-            const res = await axios.get(`/api/competitions/${id}`);
+            const res = await api.get(`/api/competitions/${id}`);
             setCompetition(res.data);
 
             // Close modal after delay
@@ -213,7 +214,7 @@ const CompetitionById = () => {
     const fetchParticipants = async () => {
         try {
             setParticipantsLoading(true);
-            const res = await axios.get(`/api/competitions/${id}/participants`, {
+            const res = await api.get(`/api/competitions/${id}/participants`, {
                 headers: {
                     Authorization: `Bearer ${currentUser.token}`
                 }
@@ -230,7 +231,7 @@ const CompetitionById = () => {
     const fetchResults = async () => {
         try {
             setResultsLoading(true);
-            const res = await axios.get(`/api/competitions/${id}/results`, {
+            const res = await api.get(`/api/competitions/${id}/results`, {
                 headers: {
                     Authorization: `Bearer ${currentUser.token}`
                 }

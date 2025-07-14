@@ -94,7 +94,7 @@ const MainNotebook = ({ notebookId }) => {
                 return;
             }
 
-            const response = await axios.get(`/api/notebooks/${notebookId}`, {
+            const response = await api.get(`/api/notebooks/${notebookId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 

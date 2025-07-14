@@ -64,7 +64,7 @@ const UserProfile = () => {
 
         console.log('Fetching user profile with token:', token?.substring(0, 10) + '...');
 
-        const { data } = await axios.get(
+        const { data } = await api.get(
           `${API_BASE_URL}/api/users/profile`,
           config
         );
