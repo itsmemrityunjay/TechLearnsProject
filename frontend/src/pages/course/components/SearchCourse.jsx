@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../../../utils/axiosConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSearch, FaTimes, FaGraduationCap, FaArrowRight } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
