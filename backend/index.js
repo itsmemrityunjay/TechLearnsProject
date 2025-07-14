@@ -36,13 +36,27 @@ require("./models/notebookModel");
 mongoose
   .connect(
     process.env.MONGODB_URI || "mongodb://localhost:27017/your_database_name",
-    {}
+    {
+      useUnifiedTopology: true,
+    }
   )
   .then(() => {
     console.log("MongoDB connected successfully");
+    console.log(`Connection state: ${mongoose.connection.readyState}`);
+    console.log(`Connected to host: ${mongoose.connection.host}`);
+    console.log(`Database name: ${mongoose.connection.name}`);
   })
   .catch((error) => {
     console.error("MongoDB connection error:", error);
+    console.error("Connection state:", mongoose.connection.readyState);
+    console.error("MongoDB URI:", process.env.MONGODB_URI ? "Set" : "Not set");
+    // Log only partial URI for security if it exists
+    if (process.env.MONGODB_URI) {
+      const uriParts = process.env.MONGODB_URI.split('@');
+      if (uriParts.length > 1) {
+        console.error("MongoDB URI pattern:", `mongodb+srv://****:****@${uriParts[1]}`);
+      }
+    }
   });
 
 // Define routes
