@@ -19,11 +19,9 @@ const OtherCompetitions = () => {
                 // Use the existing competitions endpoint with a query parameter
                 const response = await api.get('/api/competitions?type=external');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                // With axios, the data is directly available in response.data
+                // No need for response.ok check or response.json()
+                const data = response.data;
 
                 // Filter for external competitions in case the API doesn't filter them
                 const externalCompetitions = data.filter(comp => comp.competitionType === 'external');

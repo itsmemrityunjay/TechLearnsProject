@@ -19,11 +19,9 @@ const PastCompetitions = () => {
                 setLoading(true);
                 const response = await api.get('/api/competitions');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                // With axios, the data is directly available in response.data
+                // No need for response.ok check or response.json()
+                const data = response.data;
 
                 // Get current date for filtering
                 const currentDate = new Date();
