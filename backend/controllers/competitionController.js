@@ -103,6 +103,7 @@ const getCompetitions = async (req, res) => {
   const MAX_RETRIES = 3;
   let retries = 0;
   
+  
   const attemptFetch = async () => {
     try {
       // Check database connection first
