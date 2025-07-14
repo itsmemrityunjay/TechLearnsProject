@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaComments, FaPlus, FaSearch, FaTags, FaLightbulb, FaUsers, FaThumbsUp } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import api from '../../../utils/axiosConfig';
 
 const Header = () => {
     const { currentUser, isAuthenticated } = useAuth();
@@ -50,7 +51,7 @@ const Header = () => {
             };
 
             // Submit form
-            const response = await fetch('/api/topics', {
+            const response = await api.get('/api/topics', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({

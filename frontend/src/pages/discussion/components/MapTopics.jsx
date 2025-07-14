@@ -4,6 +4,7 @@ import {
     FaSearch, FaUsers, FaComments, FaClock, FaTimes, FaFilter,
     FaThumbsUp, FaReply, FaShare, FaBookmark, FaEllipsisH, FaChevronDown
 } from 'react-icons/fa';
+import api from '../../../utils/axiosConfig';
 import { useAuth } from '../../../context/AuthContext';
 
 const TopicsGrid = () => {
@@ -51,7 +52,7 @@ const TopicsGrid = () => {
         const fetchTopics = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('/api/topics?includeDiscussions=true');
+                const response = await api.get('/api/topics?includeDiscussions=true');
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -183,7 +184,7 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
 
             // Fetch the complete topic with all details
-            const response = await fetch(`/api/topics/${topicId}`, {
+            const response = await api.get(`/api/topics/${topicId}`, {
                 headers: token ? {
                     'Authorization': `Bearer ${token}`
                 } : {}
@@ -266,7 +267,7 @@ const TopicsGrid = () => {
             setReplyLoading(true);
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`/api/topics/${currentTopic._id}/questions`, {
+            const response = await api.get(`/api/topics/${currentTopic._id}/questions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -341,7 +342,7 @@ const TopicsGrid = () => {
             setAnswerLoading(true);
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`/api/topics/${currentTopic._id}/questions/${questionId}/answers`, {
+            const response = await api.get(`/api/topics/${currentTopic._id}/questions/${questionId}/answers`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -416,7 +417,7 @@ const TopicsGrid = () => {
             const responseKey = `${currentTopic._id}-${discussionId}`;
             const isLiked = likedResponses.has(responseKey);
 
-            const response = await fetch(`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {
+            const response = await api.get(`/api/topics/${currentTopic._id}/questions/${discussionId}/like`, {
                 method: isLiked ? 'DELETE' : 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -489,7 +490,7 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
             const isLiked = likedTopics.has(topicId);
 
-            const response = await fetch(`/api/topics/${topicId}/like`, {
+            const response = await api.get(`/api/topics/${topicId}/like`, {
                 method: isLiked ? 'DELETE' : 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -543,7 +544,7 @@ const TopicsGrid = () => {
             const token = localStorage.getItem('token');
             const isSaved = savedTopics.has(topicId);
 
-            const response = await fetch(`/api/topics/${topicId}/bookmark`, {
+            const response = await api.get(`/api/topics/${topicId}/bookmark`, {
                 method: isSaved ? 'DELETE' : 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
