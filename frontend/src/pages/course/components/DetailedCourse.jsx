@@ -242,11 +242,15 @@ const DetailedCourse = () => {
                 throw new Error("Razorpay SDK failed to load");
             }
 
+            console.log("Initializing payment for course:", id);
+
             // Step 1: Create an order on your backend
             const orderResponse = await api.post(`/api/payments/create-order`, {
                 courseId: id,
                 amount: Math.round(course.price * 100) // Razorpay expects amount in paise
             });
+
+            console.log("Order created successfully:", orderResponse.data);
 
             // Step 2: Initialize Razorpay payment
             const options = {
@@ -258,6 +262,8 @@ const DetailedCourse = () => {
                 order_id: orderResponse.data.id,
                 handler: async function (response) {
                     try {
+                        console.log("Payment completed by user:", response);
+
                         // Step 3: Verify payment with your backend
                         const verificationResponse = await api.post('/api/payments/verify', {
                             razorpay_payment_id: response.razorpay_payment_id,
@@ -266,12 +272,16 @@ const DetailedCourse = () => {
                             courseId: id
                         });
 
+                        console.log("Payment verified:", verificationResponse.data);
+
                         // Step 4: If verification succeeds, enroll the user
                         if (verificationResponse.status === 200) {
                             const enrollResponse = await api.post(`/api/courses/${id}/enroll`, {
                                 paymentCompleted: true,
                                 paymentId: response.razorpay_payment_id
                             });
+
+                            console.log("Enrollment successful:", enrollResponse.data);
 
                             setIsEnrolled(true);
                             setShowPaymentModal(false);
@@ -312,7 +322,24 @@ const DetailedCourse = () => {
             razorpay.open();
         } catch (err) {
             console.error('Payment initialization error:', err);
-            setEnrollmentError(err.response?.data?.message || 'Failed to initialize payment');
+
+            let errorMessage = 'Failed to initialize payment';
+
+            if (err.response) {
+                // The request was made and the server responded with a status code
+                console.error('Server error response:', err.response.data);
+                errorMessage = err.response.data?.message || 'Server error during payment initialization';
+            } else if (err.request) {
+                // The request was made but no response was received
+                console.error('No response received:', err.request);
+                errorMessage = 'No response from payment server. Please check your internet connection.';
+            } else {
+                // Something happened in setting up the request
+                console.error('Error setting up payment:', err.message);
+                errorMessage = `Error: ${err.message}`;
+            }
+
+            setEnrollmentError(errorMessage);
             setEnrolling(false);
         }
     };
@@ -724,8 +751,8 @@ const DetailedCourse = () => {
                                     onClick={handleEnroll}
                                     disabled={enrolling}
                                     className={`w-full py-3 rounded-md font-medium flex items-center justify-center ${course?.isPremium
-                                            ? 'bg-[#f99e1c] text-white hover:bg-[#f99e1c]/90'
-                                            : 'bg-[#013954] text-white hover:bg-[#013954]/90'
+                                        ? 'bg-[#f99e1c] text-white hover:bg-[#f99e1c]/90'
+                                        : 'bg-[#013954] text-white hover:bg-[#013954]/90'
                                         }`}
                                 >
                                     {enrolling ? (
