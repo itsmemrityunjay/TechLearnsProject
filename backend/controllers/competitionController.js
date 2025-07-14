@@ -98,51 +98,91 @@ const createCompetition = async (req, res) => {
 // @access  Public
 const getCompetitions = async (req, res) => {
   console.log("GET /api/competitions endpoint hit with query:", req.query);
-  try {
-    // Check database connection first
-    if (mongoose.connection.readyState !== 1) {
-      console.error("Database not connected, readyState:", mongoose.connection.readyState);
+  
+  // Maximum number of connection attempts
+  const MAX_RETRIES = 3;
+  let retries = 0;
+  
+  const attemptFetch = async () => {
+    try {
+      // Check database connection first
+      if (mongoose.connection.readyState !== 1) {
+        console.error("Database not connected, readyState:", mongoose.connection.readyState);
+        
+        // If we haven't exceeded retries, attempt to reconnect
+        if (retries < MAX_RETRIES) {
+          retries++;
+          console.log(`Connection attempt ${retries}/${MAX_RETRIES}...`);
+          
+          // Wait briefly before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to connect explicitly if needed
+          if (mongoose.connection.readyState === 0) {
+            console.log("Attempting to reconnect to MongoDB...");
+            try {
+              await mongoose.connect(process.env.MONGODB_URI, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+                serverSelectionTimeoutMS: 5000 // Faster timeout for retries
+              });
+              console.log("Reconnection successful");
+            } catch (connErr) {
+              console.error("Reconnection failed:", connErr.message);
+            }
+          }
+          
+          // Retry the entire fetch function
+          return attemptFetch();
+        }
+        
+        // If we've exceeded retries, return the connection error
+        return res.status(500).json({ 
+          message: "Database connection issue",
+          readyState: mongoose.connection.readyState,
+          note: "We're experiencing temporary database issues. Please try again shortly."
+        });
+      }
+
+      // Parse query parameters
+      const { category, status, difficulty, type } = req.query;
+      const query = {};
+
+      if (category) query.category = category;
+      if (status) query.status = status;
+      if (difficulty) query.difficulty = difficulty;
+      
+      // Add support for the type parameter (maps to competitionType in the model)
+      if (type === 'internal' || type === 'external') {
+        query.competitionType = type;
+        console.log(`Filtering by competitionType: ${type}`);
+      }
+
+      console.log("Competition query:", query);
+
+      // Get competitions
+      const competitions = await Competition.find(query).sort({ startDate: -1 });
+      console.log(`Found ${competitions.length} competitions matching query`);
+      
+      // Populate host details
+      const populatedCompetitions = await Competition.populate(competitions, {
+        path: "hostedBy",
+        select: "name firstName lastName organizationName"
+      });
+
+      return res.json(populatedCompetitions);
+    } catch (error) {
+      console.error("Error fetching competitions:", error);
       return res.status(500).json({ 
-        message: "Database connection issue",
-        readyState: mongoose.connection.readyState
+        message: "Failed to fetch competitions", 
+        error: error.message,
+        stack: process.env.NODE_ENV === "production" ? "🥞" : error.stack 
       });
     }
-
-    // Parse query parameters
-    const { category, status, difficulty, type } = req.query;
-    const query = {};
-
-    if (category) query.category = category;
-    if (status) query.status = status;
-    if (difficulty) query.difficulty = difficulty;
-    
-    // Add support for the type parameter (maps to competitionType in the model)
-    if (type === 'internal' || type === 'external') {
-      query.competitionType = type;
-      console.log(`Filtering by competitionType: ${type}`);
-    }
-
-    console.log("Competition query:", query);
-
-    // Get competitions without population first to isolate issues
-    const competitions = await Competition.find(query).sort({ startDate: -1 });
-    console.log(`Found ${competitions.length} competitions matching query`);
-    
-    // Then populate if needed
-    const populatedCompetitions = await Competition.populate(competitions, {
-      path: "hostedBy",
-      select: "name firstName lastName organizationName"
-    });
-
-    return res.json(populatedCompetitions);
-  } catch (error) {
-    console.error("Error fetching competitions:", error);
-    return res.status(500).json({ 
-      message: "Failed to fetch competitions", 
-      error: error.message,
-      stack: process.env.NODE_ENV === "production" ? "🥞" : error.stack 
-    });
-  }
+  };
+  
+  // Start the fetch attempt process
+  return attemptFetch();
 };
 
 // @desc    Get competition by ID
