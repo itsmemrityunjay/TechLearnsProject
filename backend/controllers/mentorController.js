@@ -67,36 +67,90 @@ const loginMentor = async (req, res) => {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
-      // Check database connection, retry if needed
-      if (mongoose.connection.readyState !== 1) {
-        console.log(`❌ Database not connected. ReadyState: ${mongoose.connection.readyState}. Retry: ${retryCount+1}/${MAX_RETRIES}`);
+      // Check database connection, handle different states properly
+      const dbState = mongoose.connection.readyState;
+      console.log(`🔌 Current database state: ${dbState}`);
+      
+      if (dbState === 0) {
+        // Disconnected - try to reconnect
+        console.log(`❌ Database disconnected. Retry: ${retryCount+1}/${MAX_RETRIES}`);
         
         if (retryCount < MAX_RETRIES) {
           retryCount++;
-          // Try to reconnect to database
           try {
+            console.log("🔄 Attempting to reconnect to database...");
             await mongoose.connect(
               process.env.MONGODB_URI || "mongodb://localhost:27017/your_database_name",
               {
                 useNewUrlParser: true,
                 useUnifiedTopology: true,
-                serverSelectionTimeoutMS: 5000, // Fast timeout for quick retry
+                serverSelectionTimeoutMS: 5000,
               }
             );
             console.log("✅ Reconnected to database, retrying login");
-            return await attemptLogin(); // Retry the login after reconnection
+            return await attemptLogin();
           } catch (reconnectErr) {
             console.error("❌ Database reconnection failed:", reconnectErr.message);
           }
         }
         
-        // If retries exhausted or reconnection failed
         return res.status(500).json({ 
           message: "Database connection issue", 
           readyState: mongoose.connection.readyState 
         });
+      } 
+      else if (dbState === 2) {
+        // Connecting - wait for connection to complete
+        console.log("⏳ Database is currently connecting, waiting...");
+        
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          
+          // Wait for connection to complete or fail
+          return new Promise((resolve) => {
+            // Set a timeout to avoid waiting forever
+            const timeout = setTimeout(() => {
+              console.log("⌛ Timed out waiting for database connection");
+              resolve(res.status(500).json({ 
+                message: "Database connection timeout", 
+                readyState: mongoose.connection.readyState 
+              }));
+            }, 5000);
+            
+            // Listen for connection events
+            mongoose.connection.once('connected', () => {
+              clearTimeout(timeout);
+              console.log("✅ Database connected while waiting, continuing login");
+              resolve(attemptLogin());
+            });
+            
+            mongoose.connection.once('error', (err) => {
+              clearTimeout(timeout);
+              console.error("❌ Database connection error while waiting:", err);
+              resolve(res.status(500).json({ 
+                message: "Database connection failed", 
+                readyState: mongoose.connection.readyState,
+                error: err.message
+              }));
+            });
+          });
+        }
+        
+        return res.status(500).json({ 
+          message: "Database still connecting after retries", 
+          readyState: mongoose.connection.readyState 
+        });
+      }
+      else if (dbState !== 1) {
+        // Any other non-connected state
+        console.log(`❌ Database in unexpected state: ${dbState}`);
+        return res.status(500).json({ 
+          message: "Database in unexpected state", 
+          readyState: mongoose.connection.readyState 
+        });
       }
 
+      // At this point, database is connected (state 1)
       // Find mentor by email
       console.log("🔍 Searching for mentor with email:", email);
       const mentor = await Mentor.findOne({ email });
