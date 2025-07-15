@@ -70,18 +70,51 @@ const loginMentor = async (req, res) => {
       // Database connected - proceed with authentication
       console.log("🔍 Searching for mentor with email:", email);
       
-      // Remove the problematic countDocuments call that's causing the 500 error
-    
-      const mentor = await Mentor.findOne({ email });
+      let mentor = null;
+      let retries = 0;
+      
+      // Add retry logic around the database query
+      while (!mentor && retries < 3) {
+        try {
+          // Check MongoDB connection state
+          if (mongoose.connection.readyState !== 1) {
+            console.log(`⚠️ Database not connected (state: ${mongoose.connection.readyState}). Attempt ${retries + 1}`);
+            
+            // Wait a moment before retrying
+            await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries)));
+            retries++;
+            continue;
+          }
+          
+          // Try to find the mentor
+          mentor = await Mentor.findOne({ email });
+        } catch (dbError) {
+          console.log(`⚠️ Database error on attempt ${retries + 1}:`, dbError.message);
+          
+          if (retries >= 2 || !dbError.message.includes('bufferCommands')) {
+            throw dbError; // Re-throw if not a connection error or we're out of retries
+          }
+          
+          // Wait a moment before retrying
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries)));
+          retries++;
+        }
+      }
 
       if (!mentor) {
         console.log("❌ No mentor found with email:", email);
         
         // In development, provide more helpful error message
         if (process.env.NODE_ENV === 'development') {
-          // List all mentor emails for debugging (only in dev)
-          const allMentors = await Mentor.find({}, 'email');
-          console.log("Available mentor emails:", allMentors.map(m => m.email));
+          try {
+            // Only attempt this if we have a connection
+            if (mongoose.connection.readyState === 1) {
+              const allMentors = await Mentor.find({}, 'email');
+              console.log("Available mentor emails:", allMentors.map(m => m.email));
+            }
+          } catch (err) {
+            console.log("Could not fetch mentor emails:", err.message);
+          }
           
           return res.status(401).json({ 
             message: "Invalid email or password",
