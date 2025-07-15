@@ -31,6 +31,8 @@ require("./models/topicModel");
 require("./models/competitionModel");
 require("./models/mockTestModel");
 require("./models/notebookModel");
+require("./models/classModel"); // Add this if it exists
+require("./models/notificationModel"); // Add this if it exists
 
 // MongoDB Connection with improved timeout handling
 mongoose

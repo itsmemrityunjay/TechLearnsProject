@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Mentor = require("../models/mentorModel");
 const User = require("../models/userModel");
 const Course = require("../models/courseModel");
@@ -62,42 +63,85 @@ const loginMentor = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // Find mentor by email
-    console.log("🔍 Searching for mentor with email:", email);
-    const mentor = await Mentor.findOne({ email });
-
-    if (!mentor) {
-      console.log("❌ No mentor found with email:", email);
-      return res.status(401).json({ message: "Invalid email or password" });
+    // Check database connection first
+    if (mongoose.connection.readyState !== 1) {
+      console.log("❌ Database not connected. ReadyState:", mongoose.connection.readyState);
+      return res.status(500).json({ 
+        message: "Database connection issue", 
+        readyState: mongoose.connection.readyState 
+      });
     }
 
-    console.log("✅ Mentor found:", mentor._id);
-    console.log("📋 Password hash exists:", !!mentor.password);
-    
-    // Check if password matches (Don't log the password!)
-    console.log("🔐 Comparing password with hash");
-    const isMatch = await bcrypt.compare(password, mentor.password);
-    console.log("🔑 Password match result:", isMatch);
+    try {
+      // Find mentor by email
+      console.log("🔍 Searching for mentor with email:", email);
+      const mentor = await Mentor.findOne({ email });
 
-    if (isMatch) {
-      console.log("✅ Password matched, generating token");
-      const token = generateToken(mentor._id, "mentor");
+      if (!mentor) {
+        console.log("❌ No mentor found with email:", email);
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      console.log("✅ Mentor found:", mentor._id);
+      console.log("📋 Password hash exists:", !!mentor.password);
       
-      return res.json({
-        _id: mentor._id,
-        firstName: mentor.firstName,
-        lastName: mentor.lastName,
-        email: mentor.email,
-        status: mentor.status,
-        token
+      // Verify password is stored correctly
+      if (!mentor.password || typeof mentor.password !== 'string') {
+        console.error("❌ Invalid password hash format for mentor:", mentor._id);
+        return res.status(500).json({ message: "Account configuration error" });
+      }
+
+      try {
+        // Check if password matches (Don't log the password!)
+        console.log("🔐 Comparing password with hash");
+        const isMatch = await bcrypt.compare(password, mentor.password);
+        console.log("🔑 Password match result:", isMatch);
+
+        if (isMatch) {
+          console.log("✅ Password matched, generating token");
+          
+          try {
+            const token = generateToken(mentor._id, "mentor");
+            
+            return res.json({
+              _id: mentor._id,
+              firstName: mentor.firstName,
+              lastName: mentor.lastName,
+              email: mentor.email,
+              status: mentor.status,
+              token
+            });
+          } catch (tokenError) {
+            console.error("❌ Token generation error:", tokenError);
+            return res.status(500).json({ 
+              message: "Authentication error", 
+              error: tokenError.message 
+            });
+          }
+        } else {
+          console.log("❌ Password mismatch for:", email);
+          return res.status(401).json({ message: "Invalid email or password" });
+        }
+      } catch (bcryptError) {
+        console.error("❌ bcrypt comparison error:", bcryptError);
+        return res.status(500).json({ 
+          message: "Password verification error",
+          error: bcryptError.message
+        });
+      }
+    } catch (dbError) {
+      console.error("❌ Database query error:", dbError);
+      return res.status(500).json({ 
+        message: "Database query error", 
+        error: dbError.message 
       });
-    } else {
-      console.log("❌ Password mismatch for:", email);
-      return res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
     console.error("❌ Mentor login error:", error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
