@@ -54,25 +54,49 @@ const registerMentor = async (req, res) => {
 // @route   POST /api/mentors/login
 // @access  Public
 const loginMentor = async (req, res) => {
-  try {
-    console.log("👉 Mentor login attempt for:", req.body.email);
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      console.log("❌ Missing email or password");
-      return res.status(400).json({ message: "Email and password are required" });
-    }
-
-    // Check database connection first
-    if (mongoose.connection.readyState !== 1) {
-      console.log("❌ Database not connected. ReadyState:", mongoose.connection.readyState);
-      return res.status(500).json({ 
-        message: "Database connection issue", 
-        readyState: mongoose.connection.readyState 
-      });
-    }
-
+  let retryCount = 0;
+  const MAX_RETRIES = 3;
+  
+  const attemptLogin = async () => {
     try {
+      console.log("👉 Mentor login attempt for:", req.body.email);
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        console.log("❌ Missing email or password");
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Check database connection, retry if needed
+      if (mongoose.connection.readyState !== 1) {
+        console.log(`❌ Database not connected. ReadyState: ${mongoose.connection.readyState}. Retry: ${retryCount+1}/${MAX_RETRIES}`);
+        
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          // Try to reconnect to database
+          try {
+            await mongoose.connect(
+              process.env.MONGODB_URI || "mongodb://localhost:27017/your_database_name",
+              {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+                serverSelectionTimeoutMS: 5000, // Fast timeout for quick retry
+              }
+            );
+            console.log("✅ Reconnected to database, retrying login");
+            return await attemptLogin(); // Retry the login after reconnection
+          } catch (reconnectErr) {
+            console.error("❌ Database reconnection failed:", reconnectErr.message);
+          }
+        }
+        
+        // If retries exhausted or reconnection failed
+        return res.status(500).json({ 
+          message: "Database connection issue", 
+          readyState: mongoose.connection.readyState 
+        });
+      }
+
       // Find mentor by email
       console.log("🔍 Searching for mentor with email:", email);
       const mentor = await Mentor.findOne({ email });
@@ -83,66 +107,39 @@ const loginMentor = async (req, res) => {
       }
 
       console.log("✅ Mentor found:", mentor._id);
-      console.log("📋 Password hash exists:", !!mentor.password);
       
-      // Verify password is stored correctly
-      if (!mentor.password || typeof mentor.password !== 'string') {
-        console.error("❌ Invalid password hash format for mentor:", mentor._id);
-        return res.status(500).json({ message: "Account configuration error" });
-      }
+      // Check if password matches
+      console.log("🔐 Comparing password with hash");
+      const isMatch = await bcrypt.compare(password, mentor.password);
+      console.log("🔑 Password match result:", isMatch);
 
-      try {
-        // Check if password matches (Don't log the password!)
-        console.log("🔐 Comparing password with hash");
-        const isMatch = await bcrypt.compare(password, mentor.password);
-        console.log("🔑 Password match result:", isMatch);
-
-        if (isMatch) {
-          console.log("✅ Password matched, generating token");
-          
-          try {
-            const token = generateToken(mentor._id, "mentor");
-            
-            return res.json({
-              _id: mentor._id,
-              firstName: mentor.firstName,
-              lastName: mentor.lastName,
-              email: mentor.email,
-              status: mentor.status,
-              token
-            });
-          } catch (tokenError) {
-            console.error("❌ Token generation error:", tokenError);
-            return res.status(500).json({ 
-              message: "Authentication error", 
-              error: tokenError.message 
-            });
-          }
-        } else {
-          console.log("❌ Password mismatch for:", email);
-          return res.status(401).json({ message: "Invalid email or password" });
-        }
-      } catch (bcryptError) {
-        console.error("❌ bcrypt comparison error:", bcryptError);
-        return res.status(500).json({ 
-          message: "Password verification error",
-          error: bcryptError.message
+      if (isMatch) {
+        console.log("✅ Password matched, generating token");
+        const token = generateToken(mentor._id, "mentor");
+        
+        return res.json({
+          _id: mentor._id,
+          firstName: mentor.firstName,
+          lastName: mentor.lastName,
+          email: mentor.email,
+          status: mentor.status || 'active',
+          token
         });
+      } else {
+        console.log("❌ Password mismatch for:", email);
+        return res.status(401).json({ message: "Invalid email or password" });
       }
-    } catch (dbError) {
-      console.error("❌ Database query error:", dbError);
+    } catch (error) {
+      console.error("❌ Mentor login error:", error);
       return res.status(500).json({ 
-        message: "Database query error", 
-        error: dbError.message 
+        message: "Server error", 
+        error: error.message 
       });
     }
-  } catch (error) {
-    console.error("❌ Mentor login error:", error);
-    return res.status(500).json({ 
-      message: "Server error", 
-      error: error.message 
-    });
-  }
+  };
+  
+  // Start the login attempt
+  return attemptLogin();
 };
 
 // @desc    Get mentor profile
