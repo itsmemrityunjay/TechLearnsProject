@@ -4,7 +4,7 @@ import axios from "axios";
 import api from '../../../utils/axiosConfig';
 
 // Fix the API URL throughout the component
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const UserProfile = () => {
   const [user, setUser] = useState(null);
@@ -200,7 +200,7 @@ const UserProfile = () => {
       };
 
       const { data } = await axios.post(
-        `${API_BASE_URL}/api/users/upload`,
+        `${API_BASE_URL}/api/upload`,  // Changed from /api/users/upload to /api/upload
         formDataImg,
         config
       );
@@ -276,7 +276,7 @@ const UserProfile = () => {
       };
 
       const { data } = await axios.post(
-        `${API_BASE_URL}/api/users/upload`,
+        `${API_BASE_URL}/api/upload`,  // Changed from /api/users/upload to /api/upload
         formDataDoc,
         config
       );
