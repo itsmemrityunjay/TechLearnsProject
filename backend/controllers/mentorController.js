@@ -20,16 +20,12 @@ const registerMentor = async (req, res) => {
       return res.status(400).json({ message: "Mentor already exists" });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create mentor
+    // Create mentor with plain password (let model handle hashing)
     const mentor = await Mentor.create({
       firstName,
       lastName,
       email,
-      password: hashedPassword,
+      password, // Plain text - will be hashed by pre-save hook
       contactNumber,
     });
 
