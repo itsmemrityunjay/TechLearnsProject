@@ -154,8 +154,8 @@ const Login = () => {
         try {
             console.log("Attempting mentor login with:", credentials.email);
 
-            const { data } = await axios.post(
-                `${API_BASE_URL}/api/mentors/login`,
+            const { data } = await api.post(
+                `/api/mentors/login`,
                 credentials
             );
 

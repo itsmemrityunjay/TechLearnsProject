@@ -73,10 +73,9 @@ const loginMentor = async (req, res) => {
 
     console.log("✅ Mentor found:", mentor._id);
     console.log("📋 Password hash exists:", !!mentor.password);
-    console.log("📋 Password hash:", mentor.password?.substring(0, 10) + "...");
     
-    // Check if password matches
-    console.log("🔐 Comparing password:", password, "with hash");
+    // Check if password matches (Don't log the password!)
+    console.log("🔐 Comparing password with hash");
     const isMatch = await bcrypt.compare(password, mentor.password);
     console.log("🔑 Password match result:", isMatch);
 
@@ -90,7 +89,7 @@ const loginMentor = async (req, res) => {
         lastName: mentor.lastName,
         email: mentor.email,
         status: mentor.status,
-        token: token
+        token
       });
     } else {
       console.log("❌ Password mismatch for:", email);
