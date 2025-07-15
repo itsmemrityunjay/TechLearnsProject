@@ -171,13 +171,13 @@ const UserProfile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Add this before creating FormData
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    // File size validation
+    if (file.size > 5 * 1024 * 1024) {
       setError('Image file size must be less than 5MB');
       return;
     }
 
-    // Add this before creating FormData
+    // File type validation
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       setError('Please select a valid image file (JPEG, PNG, GIF, WEBP)');
@@ -185,10 +185,10 @@ const UserProfile = () => {
     }
 
     const formDataImg = new FormData();
-    formDataImg.append("image", file); // Make sure "image" matches what your backend expects
+    formDataImg.append("file", file); // Changed from "image" to "file" to match backend
 
     setImageUploading(true);
-    setError(''); // Clear any previous errors
+    setError('');
 
     try {
       const token = localStorage.getItem("token");
@@ -199,35 +199,25 @@ const UserProfile = () => {
         },
       };
 
-      // Fix URL construction - remove line break and add proper fallback
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const { data } = await axios.post(
-        `${API_BASE_URL}/api/users/upload`, // ✅ Change from /api/upload to /api/users/upload
+        `${API_BASE_URL}/api/users/upload`,
         formDataImg,
         config
       );
 
-      // Add some debugging
       console.log('Image upload response:', data);
 
-      // Add this to handle different possible response formats
-      if (data) {
-        // Check for different possible response field names
-        const imageUrl = data.imageUrl || data.fileUrl || data.url || data.path;
+      // Handle different response formats
+      const imageUrl = data.url || data.fileUrl || data.imageUrl || data.path;
 
-        if (imageUrl) {
-          setFormData({
-            ...formData,
-            profileImage: imageUrl,
-          });
-        } else {
-          console.error('Invalid image URL in response:', data);
-          setError('Server returned an invalid image URL format');
-        }
+      if (imageUrl) {
+        setFormData({
+          ...formData,
+          profileImage: imageUrl,
+        });
       } else {
-        // Handle unexpected response structure
-        console.error('Invalid response format:', data);
-        setError('Server returned an invalid response. Please try again.');
+        console.error('Invalid image URL in response:', data);
+        setError('Server returned an invalid image URL format');
       }
     } catch (error) {
       console.error('Image upload error:', error);
@@ -270,7 +260,7 @@ const UserProfile = () => {
     }
 
     const formDataDoc = new FormData();
-    formDataDoc.append("document", file);
+    formDataDoc.append("file", file); // Changed from "document" to "file" to match backend
 
     setError('');
     const tempBtnText = document.getElementById('upload-doc-btn').innerText;
@@ -286,19 +276,22 @@ const UserProfile = () => {
       };
 
       const { data } = await axios.post(
-        `${API_BASE_URL}/api/users/upload`, // ✅ Use the same correct endpoint
+        `${API_BASE_URL}/api/users/upload`,
         formDataDoc,
         config
       );
 
       console.log('Document upload response:', data);
 
-      if (data && data.fileUrl) {
+      // Handle different response formats
+      const documentUrl = data.url || data.fileUrl || data.imageUrl || data.path;
+
+      if (documentUrl) {
         setFormData({
           ...formData,
           belowPoverty: {
             ...formData.belowPoverty,
-            document: data.fileUrl,
+            document: documentUrl,
           },
         });
       } else {
@@ -472,8 +465,11 @@ const UserProfile = () => {
               <div className="relative">
                 <img
                   src={
-                    user.profileImage ||
-                    "https://avatar.iran.liara.run/public"
+                    formData.profileImage?.startsWith('data:') ||
+                      formData.profileImage?.startsWith('http') ?
+                      formData.profileImage :
+                      `${API_BASE_URL}${formData.profileImage}` ||
+                      "https://avatar.iran.liara.run/public"
                   }
                   alt="Profile"
                   className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
@@ -899,8 +895,11 @@ const UserProfile = () => {
                 <div className="relative">
                   <img
                     src={
-                      user.profileImage ||
-                      "https://avatar.iran.liara.run/public"
+                      user.profileImage?.startsWith('data:') ||
+                        user.profileImage?.startsWith('http') ?
+                        user.profileImage :
+                        `${API_BASE_URL}${user.profileImage}` ||
+                        "https://avatar.iran.liara.run/public"
                     }
                     alt="Profile"
                     className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-md"
@@ -1001,7 +1000,7 @@ const UserProfile = () => {
                   {user.skills.map((skill, index) => (
                     <span
                       key={index}
-                      className="bg-[#013954] bg-opacity-10 text-white px-6 py-3 rounded-full text-sm font-medium"
+                      className="bg-[#013954] bg-opacity-10 text-[#013954] px-6 py-3 rounded-full text-sm font-medium"
                     >
                       {skill}
                     </span>
