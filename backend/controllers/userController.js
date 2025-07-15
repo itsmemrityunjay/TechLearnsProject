@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const Mentor = require("../models/mentorModel"); // Import Mentor model
 const bcrypt = require("bcryptjs");
 const { generateToken } = require("../middleware/auth");
 
@@ -176,6 +177,53 @@ const loginUser = async (req, res) => {
   }
 };
 
+// @desc    Register a new mentor
+// @route   POST /api/users/register-mentor
+// @access  Public
+const registerMentor = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, contactNumber, skills } = req.body;
+    
+    // Check if mentor already exists
+    const mentorExists = await Mentor.findOne({ email });
+    if (mentorExists) {
+      return res.status(400).json({ message: "Mentor already exists" });
+    }
+    
+    // Ensure password is properly hashed with sufficient rounds
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    console.log("Creating new mentor account for:", email);
+    
+    // Create mentor
+    const mentor = await Mentor.create({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,  // Store the hashed password
+      contactNumber,
+      skills: Array.isArray(skills) ? skills : []
+    });
+    
+    if (mentor) {
+      console.log("Mentor created successfully:", mentor._id);
+      res.status(201).json({
+        _id: mentor._id,
+        firstName: mentor.firstName,
+        lastName: mentor.lastName,
+        email: mentor.email,
+        token: generateToken(mentor._id, "mentor")
+      });
+    } else {
+      res.status(400).json({ message: "Invalid mentor data" });
+    }
+  } catch (error) {
+    console.error("Mentor registration error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Other controller functions with basic implementations
 const getUserProfile = async (req, res) => {
   try {
@@ -319,6 +367,7 @@ const getUserBadges = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  registerMentor, // Export registerMentor function
   getUserProfile,
   updateUserProfile,
   getAllUsers,
