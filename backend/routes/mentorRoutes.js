@@ -17,12 +17,14 @@ const {
   addMentorReview,
   deleteMentor,
   updateMentorAvailability,
+  resetMentorPassword,
 } = require("../controllers/mentorController");
 const { protect, admin, mentorOnly } = require("../middleware/auth");
 
 // Public routes
 router.post("/register", registerMentor);
 router.post("/login", loginMentor);
+router.post("/reset-password", resetMentorPassword);
 router.get("/", getAllMentors);
 
 // Protected routes - specific paths must come BEFORE parameter routes

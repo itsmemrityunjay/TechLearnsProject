@@ -266,8 +266,29 @@ const getAllMentors = async (req, res) => {
 };
 
 const getMentorById = async (req, res) => {
-  // Implementation for getting mentor by ID
-  res.json({ message: "Get mentor by ID endpoint" });
+  try {
+    const mentorId = req.params.id;
+    
+    // Validate the ID format
+    if (!mongoose.Types.ObjectId.isValid(mentorId)) {
+      return res.status(400).json({ message: "Invalid mentor ID format" });
+    }
+    
+    // Find mentor by ID and exclude password
+    const mentor = await Mentor.findById(mentorId)
+      .select("-password")
+      .populate("courses");
+    
+    if (!mentor) {
+      return res.status(404).json({ message: "Mentor not found" });
+    }
+    
+    // Return mentor data
+    res.json(mentor);
+  } catch (error) {
+    console.error("Error fetching mentor by ID:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 const deleteMentor = async (req, res) => {
@@ -377,6 +398,47 @@ const getMentorNotifications = async (req, res) => {
   }
 };
 
+// @desc    Reset mentor password (development tool)
+// @route   POST /api/mentors/reset-password
+// @access  Public (for development purposes)
+const resetMentorPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: "Email and new password are required" });
+    }
+    
+    // Find the mentor
+    const mentor = await Mentor.findOne({ email });
+    if (!mentor) {
+      return res.status(404).json({ message: "Mentor not found" });
+    }
+    
+    // Log current password hash for debugging
+    console.log(`🔄 Resetting password for mentor: ${email}`);
+    console.log(`📋 Current password hash: ${mentor.password?.substring(0, 10)}...`);
+    
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // Update the password
+    mentor.password = hashedPassword;
+    await mentor.save();
+    
+    console.log(`✅ Password reset successful, new hash: ${hashedPassword.substring(0, 10)}...`);
+    
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("❌ Password reset error:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   registerMentor,
   loginMentor,
@@ -394,4 +456,5 @@ module.exports = {
   getMentorStudents,
   getMentorClasses,
   getMentorNotifications,
+  resetMentorPassword, // Add this new function
 };
