@@ -54,27 +54,51 @@ const registerMentor = async (req, res) => {
 // @access  Public
 const loginMentor = async (req, res) => {
   try {
+    console.log("👉 Mentor login attempt for:", req.body.email);
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      console.log("❌ Missing email or password");
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
     // Find mentor by email
+    console.log("🔍 Searching for mentor with email:", email);
     const mentor = await Mentor.findOne({ email });
 
-    // Check if mentor exists and password matches
-    if (mentor && (await bcrypt.compare(password, mentor.password))) {
-      res.json({
+    if (!mentor) {
+      console.log("❌ No mentor found with email:", email);
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    console.log("✅ Mentor found:", mentor._id);
+    console.log("📋 Password hash exists:", !!mentor.password);
+    console.log("📋 Password hash:", mentor.password?.substring(0, 10) + "...");
+    
+    // Check if password matches
+    console.log("🔐 Comparing password:", password, "with hash");
+    const isMatch = await bcrypt.compare(password, mentor.password);
+    console.log("🔑 Password match result:", isMatch);
+
+    if (isMatch) {
+      console.log("✅ Password matched, generating token");
+      const token = generateToken(mentor._id, "mentor");
+      
+      return res.json({
         _id: mentor._id,
         firstName: mentor.firstName,
         lastName: mentor.lastName,
         email: mentor.email,
         status: mentor.status,
-        token: generateToken(mentor._id, "mentor"), // Note the "mentor" role
+        token: token
       });
     } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      console.log("❌ Password mismatch for:", email);
+      return res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Mentor login error:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 

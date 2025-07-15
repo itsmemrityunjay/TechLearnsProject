@@ -149,6 +149,33 @@ const Login = () => {
         }
     };
 
+    // Mentor login handler
+    const handleMentorLogin = async (credentials) => {
+        try {
+            console.log("Attempting mentor login with:", credentials.email);
+
+            const { data } = await axios.post(
+                `${API_BASE_URL}/api/mentors/login`,
+                credentials
+            );
+
+            console.log("Mentor login successful:", data);
+
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("userType", "mentor");
+            navigate("/mentor-dashboard");
+        } catch (error) {
+            console.error("Login error:", error);
+            console.error("Error response status:", error.response?.status);
+            console.error("Error response headers:", error.response?.headers);
+            console.error("Error response data:", error.response?.data);
+
+            setError(
+                error.response?.data?.message || "Login failed. Please try again."
+            );
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
             <motion.div

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import api from '../../utils/axiosConfig'
 
 const PovertyVerification = () => {
     const [formData, setFormData] = useState({
@@ -152,7 +153,7 @@ const PovertyVerification = () => {
                 }
             };
 
-            const uploadResponse = await axios.post(
+            const uploadResponse = await api.post(
                 `${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/upload`,
                 imageFormData,
                 uploadConfig
@@ -161,7 +162,7 @@ const PovertyVerification = () => {
             const fileUrl = uploadResponse.data.fileUrl;
 
             // Then submit the form with the file URL
-            await axios.post(
+            await api.post(
                 `${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/users/poverty-verification`,
                 {
                     ...formData,
