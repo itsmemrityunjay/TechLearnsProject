@@ -208,7 +208,7 @@ const UserProfile = () => {
       console.log('Image upload response:', data);
 
       // Handle different response formats
-      const imageUrl = data.url || data.fileUrl || data.imageUrl || data.path;
+      const imageUrl = data.url || data.fileUrl;
 
       if (imageUrl) {
         setFormData({
@@ -284,7 +284,7 @@ const UserProfile = () => {
       console.log('Document upload response:', data);
 
       // Handle different response formats
-      const documentUrl = data.url || data.fileUrl || data.imageUrl || data.path;
+      const documentUrl = data.url || data.fileUrl;
 
       if (documentUrl) {
         setFormData({

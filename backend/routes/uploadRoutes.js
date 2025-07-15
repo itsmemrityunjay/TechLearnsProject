@@ -8,80 +8,83 @@ const { v4: uuidv4 } = require("uuid");
 const { protect } = require("../middleware/auth");
 const { google } = require("googleapis");
 
-// Create temp directory for file uploads if it doesn't exist
-const tempUploadDir = path.join(os.tmpdir(), 'techlearns-uploads');
-if (!fs.existsSync(tempUploadDir)) {
-  fs.mkdirSync(tempUploadDir, { recursive: true });
-}
-
-// Configure multer to use temporary storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, tempUploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
-  }
-});
-
-// Fallback to memory storage if disk storage isn't possible
-const memoryStorage = multer.memoryStorage();
-
-// Configure upload with file size limit
+// Configure multer to use memory storage for Vercel
+const storage = multer.memoryStorage();
 const upload = multer({
-  storage: process.env.NODE_ENV === 'production' ? memoryStorage : storage,
+  storage: storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
 });
 
-// Google Drive API setup
+// Google Drive API setup with better error handling
 let drive;
 try {
   const SCOPES = ['https://www.googleapis.com/auth/drive'];
   let auth;
   
-  if (process.env.NODE_ENV === 'production') {
-    // Load credentials from environment variable for production
-    if (process.env.GOOGLE_SERVICE_ACCOUNT) {
+  // Log the environment for debugging
+  console.log(`Running in ${process.env.NODE_ENV || 'development'} environment`);
+  
+  // Check for Google service account in environment variable
+  if (process.env.GOOGLE_SERVICE_ACCOUNT) {
+    try {
       const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      auth = new google.auth.GoogleAuth({
-        credentials: serviceAccount,
-        scopes: SCOPES,
-      });
-      console.log("Initialized Google Drive with service account from env variables");
-    } else {
-      console.warn("GOOGLE_SERVICE_ACCOUNT env variable not found");
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        auth = new google.auth.GoogleAuth({
+          credentials: serviceAccount,
+          scopes: SCOPES,
+        });
+        console.log("✅ Initialized Google Drive with service account from env variables");
+      } else {
+        console.error("❌ GOOGLE_SERVICE_ACCOUNT missing private_key");
+      }
+    } catch (parseError) {
+      console.error("❌ Failed to parse GOOGLE_SERVICE_ACCOUNT:", parseError.message);
     }
   } else {
-    // Load credentials from a local file for development
+    console.warn("⚠️ GOOGLE_SERVICE_ACCOUNT env variable not found");
+    
+    // Try local file as fallback (for development)
     const KEYFILEPATH = path.join(__dirname, '../service.json');
     if (fs.existsSync(KEYFILEPATH)) {
       auth = new google.auth.GoogleAuth({
         keyFile: KEYFILEPATH,
         scopes: SCOPES,
       });
-      console.log("Initialized Google Drive with service account from local file");
+      console.log("✅ Initialized Google Drive with service account from local file");
     } else {
-      console.warn(`Service account file not found at ${KEYFILEPATH}`);
+      console.warn(`⚠️ Service account file not found at ${KEYFILEPATH}`);
     }
   }
   
   if (auth) {
     drive = google.drive({ version: 'v3', auth });
+    console.log("✅ Google Drive client created successfully");
   }
 } catch (error) {
-  console.error("Failed to initialize Google Drive API:", error);
+  console.error("❌ Failed to initialize Google Drive API:", error);
 }
+
+// Simple fallback for folder structure (if Drive fails)
+const defaultFolders = {
+  mainFolder: { id: 'root', name: 'TechLearns' },
+  userFolder: { id: 'root', name: 'user' },
+  subfolders: { 
+    image: { id: 'root', name: 'images' },
+    video: { id: 'root', name: 'videos' },
+    application: { id: 'root', name: 'documents' }
+  }
+};
 
 /**
  * Find a folder by name under a specific parent
  */
 async function findFolder(name, parentId = null) {
   try {
+    if (!drive) return null;
+    
     let query = `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false`;
     if (parentId) {
       query += ` and '${parentId}' in parents`;
@@ -104,6 +107,8 @@ async function findFolder(name, parentId = null) {
  */
 async function createFolder(name, parentId = null) {
   try {
+    if (!drive) return null;
+    
     const fileMetadata = {
       name,
       mimeType: 'application/vnd.google-apps.folder',
@@ -118,7 +123,7 @@ async function createFolder(name, parentId = null) {
     return folder.data;
   } catch (error) {
     console.error("Error creating folder:", error);
-    throw error;
+    return null;
   }
 }
 
@@ -127,16 +132,20 @@ async function createFolder(name, parentId = null) {
  */
 async function createFolderStructure(mainFolderName, userId, subfolders = []) {
   try {
+    if (!drive) return defaultFolders;
+    
     // Main folder
     let mainFolder = await findFolder(mainFolderName);
     if (!mainFolder) {
       mainFolder = await createFolder(mainFolderName);
+      if (!mainFolder) return defaultFolders;
     }
     
     // User-specific folder inside the main folder
     let userFolder = await findFolder(userId, mainFolder.id);
     if (!userFolder) {
       userFolder = await createFolder(userId, mainFolder.id);
+      if (!userFolder) return { mainFolder, userFolder: defaultFolders.userFolder, subfolders: {} };
     }
     
     // Create subfolders inside the user folder
@@ -145,6 +154,10 @@ async function createFolderStructure(mainFolderName, userId, subfolders = []) {
       let subfolder = await findFolder(subfolderName, userFolder.id);
       if (!subfolder) {
         subfolder = await createFolder(subfolderName, userFolder.id);
+        if (!subfolder) {
+          createdSubfolders[subfolderName] = defaultFolders.subfolders[subfolderName] || { id: 'root', name: subfolderName };
+          continue;
+        }
       }
       createdSubfolders[subfolderName] = subfolder;
     }
@@ -156,24 +169,25 @@ async function createFolderStructure(mainFolderName, userId, subfolders = []) {
     };
   } catch (error) {
     console.error("Error creating folder structure:", error);
-    throw error;
+    return defaultFolders;
   }
 }
 
 /**
- * Upload a file to a specific folder on Google Drive
+ * Upload a file to Google Drive or fallback to base64
  */
-async function uploadFile(filePath, destinationFolderId, options = {}) {
+async function uploadFile(fileBuffer, fileName, mimeType, destinationFolderId, options = {}) {
   try {
-    const { userId, category, customPrefix } = options;
+    if (!drive) throw new Error("Drive API not initialized");
     
-    // Get original filename and split into name and extension
-    const originalFileName = path.basename(filePath);
-    const fileExt = path.extname(originalFileName);
-    const fileNameWithoutExt = path.basename(originalFileName, fileExt);
+    const { userId, category, customPrefix } = options;
     
     // Create timestamp for uniqueness
     const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 14);
+    
+    // Extract file extension
+    const fileExt = path.extname(fileName);
+    const fileNameWithoutExt = path.basename(fileName, fileExt);
     
     // Build new filename with context information
     let newFileName = '';
@@ -193,21 +207,16 @@ async function uploadFile(filePath, destinationFolderId, options = {}) {
     // Add sanitized original name and timestamp
     newFileName += `${fileNameWithoutExt.replace(/[^a-zA-Z0-9-_]/g, '')}_${timestamp}${fileExt}`;
     
-    // Check if file is a Buffer (from memory storage) or a file path
-    let media;
-    if (Buffer.isBuffer(filePath)) {
-      media = {
-        body: filePath
-      };
-    } else {
-      media = {
-        body: fs.createReadStream(filePath)
-      };
-    }
-    
     const fileMetadata = {
       name: newFileName,
       parents: [destinationFolderId],
+    };
+    
+    const media = {
+      mimeType,
+      body: Buffer.isBuffer(fileBuffer) 
+        ? require('stream').Readable.from(fileBuffer)
+        : fileBuffer
     };
     
     // Upload the file
@@ -238,116 +247,105 @@ async function uploadFile(filePath, destinationFolderId, options = {}) {
 
     return {
       fileName: file.data.name,
-      originalName: originalFileName,
+      originalName: fileName,
       fileId,
       fileUrl,
     };
   } catch (error) {
-    console.error("Error uploading file:", error);
+    console.error("Error uploading file to Google Drive:", error);
     throw error;
   }
 }
 
-// Clean up temp files periodically
-function cleanupTempFiles() {
-  try {
-    const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
-    
-    if (fs.existsSync(tempUploadDir)) {
-      const now = Date.now();
-      const files = fs.readdirSync(tempUploadDir);
-      
-      files.forEach(file => {
-        const filePath = path.join(tempUploadDir, file);
-        try {
-          const stats = fs.statSync(filePath);
-          const fileAge = now - stats.mtimeMs;
-          
-          if (fileAge > MAX_AGE_MS) {
-            fs.unlinkSync(filePath);
-            console.log(`Cleaned up old temp file: ${file} (${Math.round(fileAge/1000/60)} min old)`);
-          }
-        } catch (err) {
-          console.error(`Error checking/removing old file ${file}:`, err);
-        }
-      });
-    }
-  } catch (error) {
-    console.error("Error during temp file cleanup:", error);
-  }
-}
-
-// Run cleanup every 30 minutes
-const cleanupInterval = setInterval(cleanupTempFiles, 30 * 60 * 1000);
-
-// Upload endpoint using Google Drive
+// Upload endpoint using Google Drive with robust error handling
 router.post("/", protect, upload.single("file"), async (req, res) => {
-  const tempFile = req.file;
-  let tempFilePath = null;
-  
   try {
-    if (!tempFile) {
+    if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    // Always log information about the upload
+    console.log("File upload request:", {
+      userId: req.userId,
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
     // If Google Drive is not configured, fall back to base64 encoding
     if (!drive) {
-      const fileBuffer = tempFile.buffer || fs.readFileSync(tempFile.path);
-      const base64File = fileBuffer.toString("base64");
+      console.log("Using base64 fallback for file upload");
+      const base64File = req.file.buffer.toString("base64");
       
       return res.json({
         message: "File uploaded successfully (using fallback base64 storage)",
-        url: `data:${tempFile.mimetype};base64,${base64File}`,
-        filename: tempFile.originalname,
-        size: tempFile.size,
+        url: `data:${req.file.mimetype};base64,${base64File}`,
+        fileUrl: `data:${req.file.mimetype};base64,${base64File}`,
+        filename: req.file.originalname,
+        size: req.file.size,
       });
     }
     
-    // If we have a buffer from memory storage, save it to temp file for processing
-    if (tempFile.buffer) {
-      tempFilePath = path.join(tempUploadDir, `${uuidv4()}-${tempFile.originalname}`);
-      fs.writeFileSync(tempFilePath, tempFile.buffer);
-    } else {
-      tempFilePath = tempFile.path;
-    }
-    
     // Determine file type category and create folder structure
-    const fileType = tempFile.mimetype.split('/')[0]; // 'image', 'video', 'application', etc.
+    const fileType = req.file.mimetype.split('/')[0]; // 'image', 'video', 'application', etc.
     const userId = req.userId; // From auth middleware
     
+    console.log(`Creating folder structure: TechLearns/${userId}/${fileType}`);
     const folderStructure = await createFolderStructure('TechLearns', userId, [fileType]);
-    const targetFolderId = folderStructure.subfolders[fileType].id;
+    const targetFolderId = folderStructure.subfolders[fileType]?.id || 'root';
     
     // Upload to Google Drive
-    const fileUploadResult = await uploadFile(tempFilePath, targetFolderId, {
-      userId,
-      category: fileType,
-      customPrefix: tempFile.originalname.substring(0, 15).replace(/[^a-zA-Z0-9-_]/g, '')
-    });
+    console.log(`Uploading file to folder ID: ${targetFolderId}`);
+    const fileUploadResult = await uploadFile(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      targetFolderId,
+      {
+        userId,
+        category: fileType,
+        customPrefix: req.file.originalname.substring(0, 15).replace(/[^a-zA-Z0-9-_]/g, '')
+      }
+    );
     
+    console.log("Upload successful:", fileUploadResult);
+    
+    // Return consistent response format
     res.json({
       message: "File uploaded successfully to Google Drive",
       url: fileUploadResult.fileUrl,
-      filename: tempFile.originalname,
+      fileUrl: fileUploadResult.fileUrl, // Include both formats for compatibility
+      filename: req.file.originalname,
       driveFilename: fileUploadResult.fileName,
       fileId: fileUploadResult.fileId,
-      size: tempFile.size,
+      size: req.file.size,
     });
   } catch (error) {
     console.error("Upload error:", error);
+    
+    // Fallback to base64 if Google Drive upload fails
+    try {
+      if (req.file && req.file.buffer) {
+        console.log("Using base64 fallback after error");
+        const base64File = req.file.buffer.toString("base64");
+        
+        return res.json({
+          message: "File uploaded with fallback method (Google Drive failed)",
+          url: `data:${req.file.mimetype};base64,${base64File}`,
+          fileUrl: `data:${req.file.mimetype};base64,${base64File}`,
+          filename: req.file.originalname,
+          size: req.file.size,
+          note: "Used base64 fallback due to storage service error"
+        });
+      }
+    } catch (fallbackError) {
+      console.error("Even fallback failed:", fallbackError);
+    }
+    
     res.status(500).json({ 
       message: "Upload failed", 
       error: error.message 
     });
-  } finally {
-    // Clean up the temporary file
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      try {
-        fs.unlinkSync(tempFilePath);
-      } catch (unlinkError) {
-        console.error("Error deleting temp file:", unlinkError);
-      }
-    }
   }
 });
 
