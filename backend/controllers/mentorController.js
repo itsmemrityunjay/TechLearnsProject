@@ -70,10 +70,8 @@ const loginMentor = async (req, res) => {
       // Database connected - proceed with authentication
       console.log("🔍 Searching for mentor with email:", email);
       
-      // Check if any mentors exist in the database at all
-      const mentorCount = await Mentor.countDocuments({});
-      console.log(`ℹ️ Total mentors in database: ${mentorCount}`);
-      
+      // Remove the problematic countDocuments call that's causing the 500 error
+    
       const mentor = await Mentor.findOne({ email });
 
       if (!mentor) {
