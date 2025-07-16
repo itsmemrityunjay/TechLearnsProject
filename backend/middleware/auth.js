@@ -1,24 +1,7 @@
 const jwt = require("jsonwebtoken");
-const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Mentor = require("../models/mentorModel");
 const School = require("../models/schoolModel");
-
-// Helper function to wait for database connection
-const waitForConnection = async (maxRetries = 5) => {
-  let retries = 0;
-  while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
-    console.log(`Waiting for database connection... (attempt ${retries + 1})`);
-    await new Promise((resolve) => setTimeout(resolve, 500 * Math.pow(2, retries)));
-    retries++;
-  }
-
-  if (mongoose.connection.readyState !== 1) {
-    throw new Error(`Database connection not ready after ${maxRetries} attempts`);
-  }
-
-  return true;
-};
 
 // Generate token for authentication
 const generateToken = (id, role) => {
@@ -27,57 +10,47 @@ const generateToken = (id, role) => {
   });
 };
 
-// Protect routes middleware
+// Protect routes - verify token
 const protect = async (req, res, next) => {
-  try {
-    let token;
+  let token;
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
-    }
-
-    if (!token) {
-      return res.status(401).json({ message: "Not authorized, no token" });
-    }
-
+  // Check for token in headers
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
     try {
+      // Get token from header
+      token = req.headers.authorization.split(" ")[1];
+
+      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Token decoded:", decoded);
 
-      // Wait for database connection before querying
-      await waitForConnection();
+      // Set user ID and role on request
+      req.userId = decoded.id;
+      req.role = decoded.role;
 
+      // Add more debugging if needed
+      console.log("Token decoded:", { id: decoded.id, role: decoded.role });
+
+      // Fetch and attach appropriate user data based on role
       if (decoded.role === "user") {
         req.user = await User.findById(decoded.id).select("-password");
-        if (!req.user) {
-          throw new Error("User not found");
-        }
       } else if (decoded.role === "mentor") {
         req.mentor = await Mentor.findById(decoded.id).select("-password");
-        if (!req.mentor) {
-          throw new Error("Mentor not found");
-        }
       } else if (decoded.role === "school") {
         req.school = await School.findById(decoded.id).select("-password");
-        if (!req.school) {
-          throw new Error("School not found");
-        }
       }
-
-      req.userId = decoded.id;
-      req.userRole = decoded.role;
 
       next();
     } catch (error) {
       console.error("Authentication error:", error);
       res.status(401).json({ message: "Not authorized, token failed" });
     }
-  } catch (error) {
-    console.error("Protect middleware error:", error);
-    res.status(500).json({ message: "Server error in authentication" });
+  }
+
+  if (!token) {
+    res.status(401).json({ message: "Not authorized, no token" });
   }
 };
 
