@@ -402,59 +402,71 @@ const deleteCourseContent = async (req, res) => {
 const enrollInCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const userId = req.userId; // This comes from the auth middleware
-    const { paymentCompleted, paymentId } = req.body; // Add these fields from request body
+    const userId = req.user?._id || req.userId; // Handle both auth middleware patterns
+    const { paymentCompleted, paymentId } = req.body;
 
     console.log(`Enrolling user ${userId} in course ${courseId}`);
+    
+    if (!userId) {
+      console.error("User ID missing from request");
+      return res.status(400).json({ message: "User ID not found in request" });
+    }
 
-    const course = await Course.findById(courseId);
+    // Find course with error handling
+    let course;
+    try {
+      course = await Course.findById(courseId);
+    } catch (err) {
+      console.error(`Error finding course: ${err.message}`);
+      return res.status(400).json({ message: "Invalid course ID format" });
+    }
+    
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    // Check if user exists
-    const user = await User.findById(userId);
+    // Find user with error handling
+    let user;
+    try {
+      user = await User.findById(userId);
+    } catch (err) {
+      console.error(`Error finding user: ${err.message}`);
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+    
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if user is already enrolled in this course
-    const alreadyEnrolled =
-      user.registeredCourses &&
-      user.registeredCourses.some(
-        (rc) => rc.courseId && rc.courseId.toString() === courseId
-      );
+    // Initialize arrays if they don't exist
+    user.registeredCourses = user.registeredCourses || [];
+    course.enrolledStudents = course.enrolledStudents || [];
+    
+    // Check if already enrolled
+    const alreadyEnrolled = user.registeredCourses.some(
+      (rc) => rc.courseId && rc.courseId.toString() === courseId
+    );
 
     if (alreadyEnrolled) {
-      return res
-        .status(400)
-        .json({ message: "Already enrolled in this course" });
+      return res.status(400).json({ message: "Already enrolled in this course" });
     }
 
-    // For premium courses, require payment verification
+    // Handle premium course enrollment
     if (course.isPremium && !user.isPremium && !user.belowPoverty?.verified) {
-      // If payment is required but not completed, return error
       if (!paymentCompleted) {
         return res.status(402).json({
           message: "Payment required for this premium course",
         });
       }
-
-      // If payment is marked as completed but no paymentId, return error
+      
       if (!paymentId) {
         return res.status(400).json({
           message: "Payment ID is required for premium course enrollment",
         });
       }
-
-      // Optional: Verify payment ID exists in your payment records
-      // const paymentRecord = await Payment.findOne({ paymentId });
-      // if (!paymentRecord) {
-      //   return res.status(400).json({ message: "Invalid payment ID" });
-      // }
     }
 
-    // Create enrollment object for user
+    // Create enrollment object
     const enrollment = {
       courseId: course._id,
       enrolledOn: Date.now(),
@@ -462,44 +474,39 @@ const enrollInCourse = async (req, res) => {
       completed: false,
     };
 
-    // If this was a paid enrollment, add payment information
     if (paymentId) {
       enrollment.paymentId = paymentId;
       enrollment.isPaid = true;
     }
 
-    // Update user's registeredCourses
-    if (!user.registeredCourses) {
-      user.registeredCourses = [];
-    }
+    // Add course to user's registeredCourses
     user.registeredCourses.push(enrollment);
-    await user.save();
-
-    // Check if user is already in course's enrolledStudents
-    const alreadyInCourseList =
-      course.enrolledStudents &&
-      course.enrolledStudents.some(
-        (studentId) => studentId && studentId.toString() === userId
-      );
-
-    if (!alreadyInCourseList) {
-      // Add user to course's enrolledStudents
-      if (!course.enrolledStudents) {
-        course.enrolledStudents = [];
-      }
+    
+    // Add user to course's enrolledStudents if not already there
+    if (!course.enrolledStudents.some(id => id && id.toString() === userId.toString())) {
       course.enrolledStudents.push(userId);
-
-      // Update enrollment count if the field exists
-      if (typeof course.totalEnrollments === "number") {
-        course.totalEnrollments += 1;
-      }
-
-      // Save course with new enrollee
-      await course.save();
+    }
+    
+    // Initialize totalEnrollments if it doesn't exist
+    if (typeof course.totalEnrollments !== "number") {
+      course.totalEnrollments = course.enrolledStudents.length;
+    } else {
+      course.totalEnrollments += 1;
     }
 
-    // Return success response with useful details
-    res.status(201).json({
+    // Save both documents with better error handling
+    try {
+      await user.save();
+      await course.save();
+    } catch (saveError) {
+      console.error(`Error saving enrollment data: ${saveError.message}`);
+      return res.status(500).json({ 
+        message: "Failed to save enrollment data", 
+        error: saveError.message 
+      });
+    }
+
+    return res.status(201).json({
       message: "Successfully enrolled in course",
       courseId: course._id,
       courseName: course.title,
@@ -508,7 +515,10 @@ const enrollInCourse = async (req, res) => {
     });
   } catch (error) {
     console.error("Enrollment error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
