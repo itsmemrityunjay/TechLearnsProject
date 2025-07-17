@@ -283,6 +283,38 @@ const getMentorNotifications = async (req, res) => {
   }
 };
 
+// @desc    Reset mentor password (for development/testing)
+// @route   POST /api/mentors/reset-password
+// @access  Public
+const resetMentorPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: "Email and new password are required" });
+    }
+    
+    // Find the mentor
+    const mentor = await Mentor.findOne({ email });
+    if (!mentor) {
+      return res.status(404).json({ message: "Mentor not found" });
+    }
+    
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // Update the password
+    mentor.password = hashedPassword;
+    await mentor.save();
+    
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Password reset error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   registerMentor,
   loginMentor,
@@ -300,4 +332,5 @@ module.exports = {
   getMentorStudents,
   getMentorClasses,
   getMentorNotifications,
+  resetMentorPassword, // Add this line
 };
