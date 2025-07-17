@@ -1,7 +1,26 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Mentor = require("../models/mentorModel");
 const School = require("../models/schoolModel");
+
+// Helper function to wait for database connection
+const waitForConnection = async (maxRetries = 5) => {
+  let retries = 0;
+  while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
+    console.log(`Waiting for database connection... (attempt ${retries + 1})`);
+    await new Promise(
+      (resolve) => setTimeout(resolve, 500 * Math.pow(2, retries))
+    );
+    retries++;
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error(`Database connection not ready after ${maxRetries} attempts`);
+  }
+
+  return true;
+};
 
 // Generate token for authentication
 const generateToken = (id, role) => {
@@ -33,6 +52,15 @@ const protect = async (req, res, next) => {
       // Add more debugging if needed
       console.log("Token decoded:", { id: decoded.id, role: decoded.role });
 
+      // Wait for database connection before querying
+      try {
+        await waitForConnection();
+        console.log("Database connection ready for auth queries");
+      } catch (connError) {
+        console.error("Database connection error:", connError.message);
+        return res.status(500).json({ message: "Database connection error" });
+      }
+
       // Fetch and attach appropriate user data based on role
       if (decoded.role === "user") {
         req.user = await User.findById(decoded.id).select("-password");
@@ -47,9 +75,7 @@ const protect = async (req, res, next) => {
       console.error("Authentication error:", error);
       res.status(401).json({ message: "Not authorized, token failed" });
     }
-  }
-
-  if (!token) {
+  } else {
     res.status(401).json({ message: "Not authorized, no token" });
   }
 };
