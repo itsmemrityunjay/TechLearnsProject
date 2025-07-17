@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Mentor = require("../models/mentorModel");
 const User = require("../models/userModel");
 const Course = require("../models/courseModel");
@@ -19,16 +20,12 @@ const registerMentor = async (req, res) => {
       return res.status(400).json({ message: "Mentor already exists" });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create mentor
+    // Create mentor with plain password (let model handle hashing)
     const mentor = await Mentor.create({
       firstName,
       lastName,
       email,
-      password: hashedPassword,
+      password, // Plain text - will be hashed by pre-save hook
       contactNumber,
     });
 
@@ -53,29 +50,122 @@ const registerMentor = async (req, res) => {
 // @route   POST /api/mentors/login
 // @access  Public
 const loginMentor = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  let retryCount = 0;
+  const MAX_RETRIES = 3;
+  
+  const attemptLogin = async () => {
+    try {
+      console.log("👉 Mentor login attempt for:", req.body.email);
+      const { email, password } = req.body;
 
-    // Find mentor by email
-    const mentor = await Mentor.findOne({ email });
+      if (!email || !password) {
+        console.log("❌ Missing email or password");
+        return res.status(400).json({ message: "Email and password are required" });
+      }
 
-    // Check if mentor exists and password matches
-    if (mentor && (await bcrypt.compare(password, mentor.password))) {
-      res.json({
-        _id: mentor._id,
-        firstName: mentor.firstName,
-        lastName: mentor.lastName,
-        email: mentor.email,
-        status: mentor.status,
-        token: generateToken(mentor._id, "mentor"), // Note the "mentor" role
+      // Database connected - proceed with authentication
+      console.log("🔍 Searching for mentor with email:", email);
+      
+      let mentor = null;
+      let retries = 0;
+      
+      // Add retry logic around the database query
+      while (!mentor && retries < 3) {
+        try {
+          // Check MongoDB connection state
+          if (mongoose.connection.readyState !== 1) {
+            console.log(`⚠️ Database not connected (state: ${mongoose.connection.readyState}). Attempt ${retries + 1}`);
+            
+            // Wait a moment before retrying
+            await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries)));
+            retries++;
+            continue;
+          }
+          
+          // Try to find the mentor
+          mentor = await Mentor.findOne({ email });
+        } catch (dbError) {
+          console.log(`⚠️ Database error on attempt ${retries + 1}:`, dbError.message);
+          
+          if (retries >= 2 || !dbError.message.includes('bufferCommands')) {
+            throw dbError; // Re-throw if not a connection error or we're out of retries
+          }
+          
+          // Wait a moment before retrying
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries)));
+          retries++;
+        }
+      }
+
+      if (!mentor) {
+        console.log("❌ No mentor found with email:", email);
+        
+        // In development, provide more helpful error message
+        if (process.env.NODE_ENV === 'development') {
+          try {
+            // Only attempt this if we have a connection
+            if (mongoose.connection.readyState === 1) {
+              const allMentors = await Mentor.find({}, 'email');
+              console.log("Available mentor emails:", allMentors.map(m => m.email));
+            }
+          } catch (err) {
+            console.log("Could not fetch mentor emails:", err.message);
+          }
+          
+          return res.status(401).json({ 
+            message: "Invalid email or password",
+            debug: "No mentor found with this email"
+          });
+        }
+        
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      console.log("✅ Mentor found:", mentor._id);
+      console.log("📋 Password hash exists:", !!mentor.password);
+      console.log("📋 Password hash length:", mentor.password?.length || 0);
+      
+      // Check if password matches
+      console.log("🔐 Comparing password with hash");
+      const isMatch = await bcrypt.compare(password, mentor.password);
+      console.log("🔑 Password match result:", isMatch);
+
+      if (isMatch) {
+        console.log("✅ Password matched, generating token");
+        const token = generateToken(mentor._id, "mentor");
+        
+        return res.json({
+          _id: mentor._id,
+          firstName: mentor.firstName,
+          lastName: mentor.lastName,
+          email: mentor.email,
+          status: mentor.status || 'active',
+          token
+        });
+      } else {
+        console.log("❌ Password mismatch for:", email);
+        
+        // In development, provide slightly more information
+        if (process.env.NODE_ENV === 'development') {
+          return res.status(401).json({ 
+            message: "Invalid email or password",
+            debug: "Password did not match stored hash"
+          });
+        }
+        
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+    } catch (error) {
+      console.error("❌ Mentor login error:", error);
+      return res.status(500).json({ 
+        message: "Server error", 
+        error: error.message 
       });
-    } else {
-      res.status(401).json({ message: "Invalid email or password" });
     }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
+  };
+  
+  // Start the login attempt
+  return attemptLogin();
 };
 
 // @desc    Get mentor profile
@@ -172,8 +262,29 @@ const getAllMentors = async (req, res) => {
 };
 
 const getMentorById = async (req, res) => {
-  // Implementation for getting mentor by ID
-  res.json({ message: "Get mentor by ID endpoint" });
+  try {
+    const mentorId = req.params.id;
+    
+    // Validate the ID format
+    if (!mongoose.Types.ObjectId.isValid(mentorId)) {
+      return res.status(400).json({ message: "Invalid mentor ID format" });
+    }
+    
+    // Find mentor by ID and exclude password
+    const mentor = await Mentor.findById(mentorId)
+      .select("-password")
+      .populate("courses");
+    
+    if (!mentor) {
+      return res.status(404).json({ message: "Mentor not found" });
+    }
+    
+    // Return mentor data
+    res.json(mentor);
+  } catch (error) {
+    console.error("Error fetching mentor by ID:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 const deleteMentor = async (req, res) => {
@@ -283,9 +394,9 @@ const getMentorNotifications = async (req, res) => {
   }
 };
 
-// @desc    Reset mentor password (for development/testing)
+// @desc    Reset mentor password (development tool)
 // @route   POST /api/mentors/reset-password
-// @access  Public
+// @access  Public (for development purposes)
 const resetMentorPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;
@@ -300,6 +411,10 @@ const resetMentorPassword = async (req, res) => {
       return res.status(404).json({ message: "Mentor not found" });
     }
     
+    // Log current password hash for debugging
+    console.log(`🔄 Resetting password for mentor: ${email}`);
+    console.log(`📋 Current password hash: ${mentor.password?.substring(0, 10)}...`);
+    
     // Hash the new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
@@ -308,10 +423,15 @@ const resetMentorPassword = async (req, res) => {
     mentor.password = hashedPassword;
     await mentor.save();
     
+    console.log(`✅ Password reset successful, new hash: ${hashedPassword.substring(0, 10)}...`);
+    
     res.json({ message: "Password reset successfully" });
   } catch (error) {
-    console.error("Password reset error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Password reset error:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
@@ -332,5 +452,5 @@ module.exports = {
   getMentorStudents,
   getMentorClasses,
   getMentorNotifications,
-  resetMentorPassword, // Add this line
+  resetMentorPassword, // Add this new function
 };
