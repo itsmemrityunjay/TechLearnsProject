@@ -117,7 +117,7 @@ const ProfileSection = ({ mentor, setMentor, onProfileUpdate }) => {
         setError('');
 
         const formDataImg = new FormData();
-        formDataImg.append("image", file); // Make sure field name is "image" to match backend
+        formDataImg.append("image", file);
 
         try {
             const token = localStorage.getItem("token");
@@ -785,7 +785,7 @@ const ProfileSection = ({ mentor, setMentor, onProfileUpdate }) => {
                                         className="inline-flex items-center text-gray-700 hover:text-indigo-600"
                                     >
                                         <svg className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c-1.657 0-3-4.03-3-9s1.343-9 3-9m0 18c1.657 0 3-4.03 3-9s-1.343-9-3-9m-9 9a9 9 0 019-9" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                                         </svg>
                                         Website
                                     </a>

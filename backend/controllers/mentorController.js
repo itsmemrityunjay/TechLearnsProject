@@ -5,7 +5,6 @@ const Class = require("../models/classModel");
 const Notification = require("../models/notificationModel.js");
 const bcrypt = require("bcryptjs");
 const { generateToken } = require("../middleware/auth");
-const multer = require("multer");
 
 // @desc    Register a new mentor
 // @route   POST /api/mentors/register
@@ -316,41 +315,6 @@ const resetMentorPassword = async (req, res) => {
   }
 };
 
-// Multer setup for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-// @desc    Upload mentor profile image
-// @route   POST /api/mentors/upload-image
-// @access  Private (Mentor only)
-const uploadMentorImage = async (req, res) => {
-  try {
-    const mentorId = req.mentor._id;
-
-    // Find the mentor
-    const mentor = await Mentor.findById(mentorId);
-
-    if (!mentor) {
-      return res.status(404).json({ message: "Mentor not found" });
-    }
-
-    // Assuming the image is sent in the request body as 'image'
-    const image = req.file.buffer;
-
-    // Here you would typically upload the image to a cloud storage (e.g., AWS S3, Cloudinary)
-    // For this example, let's just simulate it by saving the image data as a string
-    mentor.profileImage = `data:${req.file.mimetype};base64,${image.toString("base64")}`;
-
-    // Save the updated mentor document
-    await mentor.save();
-
-    res.json({ message: "Image uploaded successfully", profileImage: mentor.profileImage });
-  } catch (error) {
-    console.error("Error uploading mentor image:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 module.exports = {
   registerMentor,
   loginMentor,
@@ -368,7 +332,5 @@ module.exports = {
   getMentorStudents,
   getMentorClasses,
   getMentorNotifications,
-  resetMentorPassword,
-  uploadMentorImage,
-  upload, // Export the multer middleware
+  resetMentorPassword, // Add this line
 };

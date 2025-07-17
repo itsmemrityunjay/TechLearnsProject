@@ -18,10 +18,8 @@ const {
   deleteMentor,
   updateMentorAvailability,
   resetMentorPassword,
-  uploadMentorImage,
 } = require("../controllers/mentorController");
 const { protect, admin, mentorOnly } = require("../middleware/auth");
-const upload = require("../middleware/upload");
 
 // Public routes
 router.post("/register", registerMentor);
@@ -39,13 +37,6 @@ router.put("/availability", protect, mentorOnly, updateMentorAvailability);
 router.get("/courses", protect, mentorOnly, getMentorCourses);
 router.get("/topics", protect, mentorOnly, getMentorTopics);
 router.get("/competitions", protect, mentorOnly, getMentorCompetitions);
-router.post(
-  "/upload",
-  protect,
-  mentorOnly,
-  upload.single("image"), // Field name must be "image" to match frontend
-  uploadMentorImage
-);
 
 // Parameter routes must come AFTER specific routes
 router.get("/:id", getMentorById);
