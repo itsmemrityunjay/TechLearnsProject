@@ -31,6 +31,11 @@ const generateToken = (id, role) => {
 
 // Protect routes - verify token
 const protect = async (req, res, next) => {
+  // Allow OPTIONS requests to pass through without authentication
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   let token;
 
   // Check for token in headers
@@ -49,7 +54,6 @@ const protect = async (req, res, next) => {
       req.userId = decoded.id;
       req.role = decoded.role;
 
-      // Add more debugging if needed
       console.log("Token decoded:", { id: decoded.id, role: decoded.role });
 
       // Wait for database connection before querying
@@ -64,10 +68,19 @@ const protect = async (req, res, next) => {
       // Fetch and attach appropriate user data based on role
       if (decoded.role === "user") {
         req.user = await User.findById(decoded.id).select("-password");
+        if (!req.user) {
+          return res.status(401).json({ message: "User not found" });
+        }
       } else if (decoded.role === "mentor") {
         req.mentor = await Mentor.findById(decoded.id).select("-password");
+        if (!req.mentor) {
+          return res.status(401).json({ message: "Mentor not found" });
+        }
       } else if (decoded.role === "school") {
         req.school = await School.findById(decoded.id).select("-password");
+        if (!req.school) {
+          return res.status(401).json({ message: "School not found" });
+        }
       }
 
       next();

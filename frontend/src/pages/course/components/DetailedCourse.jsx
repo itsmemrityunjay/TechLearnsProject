@@ -230,20 +230,30 @@ const DetailedCourse = () => {
             setEnrolling(true);
             setEnrollmentError(null);
 
+            console.log("Starting enrollment for course:", id);
+
             // For free courses, directly enroll
-            await api.post(`/api/courses/${id}/enroll`);
+            const response = await api.post(`/api/courses/${id}/enroll`, {
+                paymentCompleted: false
+            });
 
-            setIsEnrolled(true);
+            console.log("Enrollment response:", response.data);
 
-            // Store enrollment in localStorage as a backup
-            const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
-            if (!enrolledCourses.includes(id)) {
-                enrolledCourses.push(id);
-                localStorage.setItem('enrolledCourses', JSON.stringify(enrolledCourses));
+            if (response.data.success) {
+                setIsEnrolled(true);
+
+                // Store enrollment in localStorage as a backup
+                const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+                if (!enrolledCourses.includes(id)) {
+                    enrolledCourses.push(id);
+                    localStorage.setItem('enrolledCourses', JSON.stringify(enrolledCourses));
+                }
+
+                // Show success notification
+                alert("Successfully enrolled in the course!");
+            } else {
+                throw new Error("Enrollment failed - no success flag in response");
             }
-
-            // Show success notification
-            alert("Successfully enrolled in the course!");
         } catch (err) {
             console.error('Enrollment error:', err);
 
@@ -253,6 +263,8 @@ const DetailedCourse = () => {
                 setTimeout(() => setShowLoginPrompt(true), 1500);
             } else if (err.response?.status === 403) {
                 setEnrollmentError("You don't have permission to enroll in this course.");
+            } else if (err.response?.status === 400) {
+                setEnrollmentError(err.response?.data?.message || 'Invalid enrollment request');
             } else {
                 setEnrollmentError(err.response?.data?.message || 'Failed to enroll in this course');
             }

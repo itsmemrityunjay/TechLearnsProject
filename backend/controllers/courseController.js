@@ -402,74 +402,110 @@ const deleteCourseContent = async (req, res) => {
 const enrollInCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const userId = req.user?._id || req.userId; // Handle both auth middleware patterns
+    
+    // Get user ID from auth middleware - handle both patterns
+    let userId;
+    if (req.user && req.user._id) {
+      userId = req.user._id;
+    } else if (req.userId) {
+      userId = req.userId;
+    } else {
+      console.error("No user ID found in request");
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
     const { paymentCompleted, paymentId } = req.body;
 
     console.log(`Enrolling user ${userId} in course ${courseId}`);
-    
-    if (!userId) {
-      console.error("User ID missing from request");
-      return res.status(400).json({ message: "User ID not found in request" });
-    }
+    console.log("Request body:", JSON.stringify(req.body));
 
-    // Find course with error handling
-    let course;
-    try {
-      course = await Course.findById(courseId);
-    } catch (err) {
-      console.error(`Error finding course: ${err.message}`);
+    // Validate MongoDB IDs
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      console.error("Invalid course ID format");
       return res.status(400).json({ message: "Invalid course ID format" });
     }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error("Invalid user ID format");
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
+    // Wait for database connection
+    let retries = 0;
+    const maxRetries = 3;
     
+    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
+      console.log(`Waiting for database connection... (attempt ${retries + 1})`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      retries++;
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      console.error("Database connection not ready");
+      return res.status(503).json({ message: "Database temporarily unavailable" });
+    }
+
+    // Find course
+    const course = await Course.findById(courseId);
     if (!course) {
+      console.error("Course not found:", courseId);
       return res.status(404).json({ message: "Course not found" });
     }
 
-    // Find user with error handling
-    let user;
-    try {
-      user = await User.findById(userId);
-    } catch (err) {
-      console.error(`Error finding user: ${err.message}`);
-      return res.status(400).json({ message: "Invalid user ID format" });
-    }
-    
+    console.log("Course found:", course.title);
+
+    // Find user
+    const user = await User.findById(userId);
     if (!user) {
+      console.error("User not found:", userId);
       return res.status(404).json({ message: "User not found" });
     }
 
+    console.log("User found:", user.email);
+
     // Initialize arrays if they don't exist
-    user.registeredCourses = user.registeredCourses || [];
-    course.enrolledStudents = course.enrolledStudents || [];
+    if (!user.registeredCourses) {
+      user.registeredCourses = [];
+    }
+    
+    if (!course.enrolledStudents) {
+      course.enrolledStudents = [];
+    }
     
     // Check if already enrolled
-    const alreadyEnrolled = user.registeredCourses.some(
-      (rc) => rc.courseId && rc.courseId.toString() === courseId
-    );
+    const alreadyEnrolled = user.registeredCourses.some(rc => {
+      if (!rc.courseId) return false;
+      return rc.courseId.toString() === courseId;
+    });
 
     if (alreadyEnrolled) {
+      console.log("User already enrolled");
       return res.status(400).json({ message: "Already enrolled in this course" });
     }
 
     // Handle premium course enrollment
     if (course.isPremium && !user.isPremium && !user.belowPoverty?.verified) {
       if (!paymentCompleted) {
+        console.log("Payment required for premium course");
         return res.status(402).json({
           message: "Payment required for this premium course",
         });
       }
       
       if (!paymentId) {
+        console.log("Payment ID missing for premium course");
         return res.status(400).json({
           message: "Payment ID is required for premium course enrollment",
         });
       }
     }
 
+    console.log("Creating enrollment object");
+
     // Create enrollment object
     const enrollment = {
       courseId: course._id,
-      enrolledOn: Date.now(),
+      enrolledOn: new Date(),
       progress: 0,
       completed: false,
     };
@@ -483,28 +519,31 @@ const enrollInCourse = async (req, res) => {
     user.registeredCourses.push(enrollment);
     
     // Add user to course's enrolledStudents if not already there
-    if (!course.enrolledStudents.some(id => id && id.toString() === userId.toString())) {
+    const userAlreadyInCourse = course.enrolledStudents.some(studentId => 
+      studentId && studentId.toString() === userId.toString()
+    );
+    
+    if (!userAlreadyInCourse) {
       course.enrolledStudents.push(userId);
     }
     
-    // Initialize totalEnrollments if it doesn't exist
+    // Update total enrollments
     if (typeof course.totalEnrollments !== "number") {
       course.totalEnrollments = course.enrolledStudents.length;
     } else {
       course.totalEnrollments += 1;
     }
 
-    // Save both documents with better error handling
-    try {
-      await user.save();
-      await course.save();
-    } catch (saveError) {
-      console.error(`Error saving enrollment data: ${saveError.message}`);
-      return res.status(500).json({ 
-        message: "Failed to save enrollment data", 
-        error: saveError.message 
-      });
-    }
+    console.log("Saving user and course data");
+
+    // Save both documents
+    await user.save();
+    console.log("User saved successfully");
+    
+    await course.save();
+    console.log("Course saved successfully");
+
+    console.log("Enrollment completed successfully");
 
     return res.status(201).json({
       message: "Successfully enrolled in course",
@@ -512,11 +551,32 @@ const enrollInCourse = async (req, res) => {
       courseName: course.title,
       isPaid: !!paymentId,
       enrollmentDate: new Date(),
+      success: true
     });
+
   } catch (error) {
     console.error("Enrollment error:", error);
+    console.error("Error stack:", error.stack);
+    
+    // Handle specific error types
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.keys(error.errors).map(field => 
+        `${field}: ${error.errors[field].message}`
+      );
+      return res.status(400).json({ 
+        message: "Validation failed", 
+        errors: validationErrors
+      });
+    }
+    
+    if (error.name === 'MongoError' || error.name === 'MongooseError') {
+      return res.status(500).json({ 
+        message: "Database error during enrollment"
+      });
+    }
+    
     res.status(500).json({ 
-      message: "Server error", 
+      message: "Server error during enrollment", 
       error: error.message 
     });
   }
