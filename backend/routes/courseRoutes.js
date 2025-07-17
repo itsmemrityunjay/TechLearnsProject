@@ -15,7 +15,6 @@ const {
   getCourseRatings,
   updateCourseProgress,
   getMentorCourses, // Add this function import
-  checkEnrollment, // Add this function import
 } = require("../controllers/courseController");
 const { protect, admin, mentorOnly } = require("../middleware/auth");
 
@@ -49,6 +48,5 @@ router.get("/:id/students", protect, mentorOnly, getEnrolledStudents);
 router.post("/:id/enroll", protect, enrollInCourse);
 router.post("/:id/rate", protect, rateCourse);
 router.put("/:id/progress", protect, updateCourseProgress);
-router.get("/:id/check-enrollment", protect, checkEnrollment); // Add this route with other course routes
 
 module.exports = router;

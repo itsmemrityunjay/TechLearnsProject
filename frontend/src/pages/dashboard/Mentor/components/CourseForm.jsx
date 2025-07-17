@@ -3,7 +3,7 @@ import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import { FaPlus, FaTrash, FaVideo, FaFile, FaListUl } from 'react-icons/fa';
 
-const CourseForm = ({ course = null, onSubmit, onCancel, onAddContent, onVideoUpload, onCourseUpdate }) => {
+const CourseForm = ({ course = null, onSubmit, onCancel, onAddContent, onVideoUpload }) => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -312,41 +312,6 @@ const CourseForm = ({ course = null, onSubmit, onCancel, onAddContent, onVideoUp
             objectives: filteredObjectives,
             price: formData.isPremium ? Number(formData.price) : 0
         });
-    };
-
-    // In your CourseForm component or wherever course updates are handled
-    const handleCourseUpdate = async (courseData) => {
-        try {
-            const token = localStorage.getItem('mentorToken') || localStorage.getItem('token');
-
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/courses/${course._id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(courseData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to update course');
-            }
-
-            const result = await response.json();
-            console.log('Course updated:', result);
-
-            // Update local state or redirect
-            if (result.course) {
-                // Update the course data
-                onCourseUpdate?.(result.course);
-            }
-
-            return result;
-        } catch (error) {
-            console.error('Course update error:', error);
-            throw error;
-        }
     };
 
     return (
