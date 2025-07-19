@@ -33,8 +33,10 @@ import {
     Clock,
     Star
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const About = () => {
+    const navigate = useNavigate();
     // Animation variants
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -500,6 +502,7 @@ const About = () => {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/courses')}
                                 className="bg-[#f99e1c] hover:bg-[#f99e1c]/90 text-[#013954] font-semibold py-4 px-8 rounded-lg text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-3 mx-auto"
                             >
                                 <FaRocket className="w-6 h-6" />

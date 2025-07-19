@@ -52,7 +52,7 @@ const registerMentor = async (req, res) => {
 const loginMentor = async (req, res) => {
   let retryCount = 0;
   const MAX_RETRIES = 3;
-  
+
   const attemptLogin = async () => {
     try {
       console.log("👉 Mentor login attempt for:", req.body.email);
@@ -60,71 +60,87 @@ const loginMentor = async (req, res) => {
 
       if (!email || !password) {
         console.log("❌ Missing email or password");
-        return res.status(400).json({ message: "Email and password are required" });
+        return res
+          .status(400)
+          .json({ message: "Email and password are required" });
       }
 
       // Database connected - proceed with authentication
       console.log("🔍 Searching for mentor with email:", email);
-      
+
       let mentor = null;
       let retries = 0;
-      
+
       // Add retry logic around the database query
       while (!mentor && retries < 3) {
         try {
           // Check MongoDB connection state
           if (mongoose.connection.readyState !== 1) {
-            console.log(`⚠️ Database not connected (state: ${mongoose.connection.readyState}). Attempt ${retries + 1}`);
-            
+            console.log(
+              `⚠️ Database not connected (state: ${
+                mongoose.connection.readyState
+              }). Attempt ${retries + 1}`
+            );
+
             // Wait a moment before retrying
-            await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries)));
+            await new Promise((resolve) =>
+              setTimeout(resolve, 500 * Math.pow(2, retries))
+            );
             retries++;
             continue;
           }
-          
+
           // Try to find the mentor
           mentor = await Mentor.findOne({ email });
         } catch (dbError) {
-          console.log(`⚠️ Database error on attempt ${retries + 1}:`, dbError.message);
-          
-          if (retries >= 2 || !dbError.message.includes('bufferCommands')) {
+          console.log(
+            `⚠️ Database error on attempt ${retries + 1}:`,
+            dbError.message
+          );
+
+          if (retries >= 2 || !dbError.message.includes("bufferCommands")) {
             throw dbError; // Re-throw if not a connection error or we're out of retries
           }
-          
+
           // Wait a moment before retrying
-          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 500 * Math.pow(2, retries))
+          );
           retries++;
         }
       }
 
       if (!mentor) {
         console.log("❌ No mentor found with email:", email);
-        
+
         // In development, provide more helpful error message
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           try {
             // Only attempt this if we have a connection
             if (mongoose.connection.readyState === 1) {
-              const allMentors = await Mentor.find({}, 'email');
-              console.log("Available mentor emails:", allMentors.map(m => m.email));
+              const allMentors = await Mentor.find({}, "email");
+              console.log(
+                "Available mentor emails:",
+                allMentors.map((m) => m.email)
+              );
             }
           } catch (err) {
             console.log("Could not fetch mentor emails:", err.message);
           }
-          
-          return res.status(401).json({ 
+
+          return res.status(401).json({
             message: "Invalid email or password",
-            debug: "No mentor found with this email"
+            debug: "No mentor found with this email",
           });
         }
-        
+
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       console.log("✅ Mentor found:", mentor._id);
       console.log("📋 Password hash exists:", !!mentor.password);
       console.log("📋 Password hash length:", mentor.password?.length || 0);
-      
+
       // Check if password matches
       console.log("🔐 Comparing password with hash");
       const isMatch = await bcrypt.compare(password, mentor.password);
@@ -133,37 +149,37 @@ const loginMentor = async (req, res) => {
       if (isMatch) {
         console.log("✅ Password matched, generating token");
         const token = generateToken(mentor._id, "mentor");
-        
+
         return res.json({
           _id: mentor._id,
           firstName: mentor.firstName,
           lastName: mentor.lastName,
           email: mentor.email,
-          status: mentor.status || 'active',
-          token
+          status: mentor.status || "active",
+          token,
         });
       } else {
         console.log("❌ Password mismatch for:", email);
-        
+
         // In development, provide slightly more information
-        if (process.env.NODE_ENV === 'development') {
-          return res.status(401).json({ 
+        if (process.env.NODE_ENV === "development") {
+          return res.status(401).json({
             message: "Invalid email or password",
-            debug: "Password did not match stored hash"
+            debug: "Password did not match stored hash",
           });
         }
-        
+
         return res.status(401).json({ message: "Invalid email or password" });
       }
     } catch (error) {
       console.error("❌ Mentor login error:", error);
-      return res.status(500).json({ 
-        message: "Server error", 
-        error: error.message 
+      return res.status(500).json({
+        message: "Server error",
+        error: error.message,
       });
     }
   };
-  
+
   // Start the login attempt
   return attemptLogin();
 };
@@ -264,21 +280,21 @@ const getAllMentors = async (req, res) => {
 const getMentorById = async (req, res) => {
   try {
     const mentorId = req.params.id;
-    
+
     // Validate the ID format
     if (!mongoose.Types.ObjectId.isValid(mentorId)) {
       return res.status(400).json({ message: "Invalid mentor ID format" });
     }
-    
+
     // Find mentor by ID and exclude password
     const mentor = await Mentor.findById(mentorId)
       .select("-password")
       .populate("courses");
-    
+
     if (!mentor) {
       return res.status(404).json({ message: "Mentor not found" });
     }
-    
+
     // Return mentor data
     res.json(mentor);
   } catch (error) {
@@ -394,43 +410,165 @@ const getMentorNotifications = async (req, res) => {
   }
 };
 
+// @desc    Update mentor's course
+// @route   PUT /api/mentors/courses/:courseId
+// @access  Private (Mentor only)
+const updateMentorCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const mentorId = req.mentor._id;
+
+    // Find the course
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    // Check if mentor is the author of the course
+    if (!course.createdBy.equals(mentorId)) {
+      return res.status(403).json({
+        message: "Not authorized to update this course",
+      });
+    }
+
+    const {
+      title,
+      description,
+      category,
+      courseFor,
+      isPremium,
+      price,
+      thumbnail,
+      objectives,
+      content,
+    } = req.body;
+
+    // Update basic fields
+    if (title) course.title = title;
+    if (description) course.description = description;
+    if (category) course.category = category;
+    if (courseFor) course.courseFor = courseFor;
+    if (isPremium !== undefined) course.isPremium = isPremium;
+    if (price !== undefined && isPremium) course.price = price;
+    if (thumbnail) course.thumbnail = thumbnail;
+    if (objectives && Array.isArray(objectives)) course.objectives = objectives;
+
+    // Update content if provided
+    if (content && Array.isArray(content)) {
+      // Format content items to remove temporary IDs
+      let formattedContent = content.map((item) => {
+        // If item has a MongoDB ObjectId, keep it, otherwise remove the _id field
+        if (item._id && mongoose.Types.ObjectId.isValid(item._id)) {
+          return item;
+        } else {
+          const { _id, ...contentWithoutId } = item;
+          return contentWithoutId;
+        }
+      });
+
+      course.content = formattedContent;
+    }
+
+    const updatedCourse = await course.save();
+    res.json(updatedCourse);
+  } catch (error) {
+    console.error("Error updating mentor course:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// @desc    Delete mentor's course
+// @route   DELETE /api/mentors/courses/:courseId
+// @access  Private (Mentor only)
+const deleteMentorCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const mentorId = req.mentor._id;
+
+    // Find the course
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    // Check if mentor is the author of the course
+    if (!course.createdBy.equals(mentorId)) {
+      return res.status(403).json({
+        message: "Not authorized to delete this course",
+      });
+    }
+
+    // Check if there are enrolled students
+    if (course.totalEnrollments > 0) {
+      return res.status(400).json({
+        message:
+          "Cannot delete course with enrolled students. Please contact support.",
+      });
+    }
+
+    // Delete the course
+    await Course.findByIdAndDelete(courseId);
+
+    // Remove course from mentor's courses array
+    await Mentor.findByIdAndUpdate(mentorId, {
+      $pull: { courses: courseId },
+    });
+
+    res.json({ message: "Course deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting mentor course:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // @desc    Reset mentor password (development tool)
 // @route   POST /api/mentors/reset-password
 // @access  Public (for development purposes)
 const resetMentorPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;
-    
+
     if (!email || !newPassword) {
-      return res.status(400).json({ message: "Email and new password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and new password are required" });
     }
-    
+
     // Find the mentor
     const mentor = await Mentor.findOne({ email });
     if (!mentor) {
       return res.status(404).json({ message: "Mentor not found" });
     }
-    
+
     // Log current password hash for debugging
     console.log(`🔄 Resetting password for mentor: ${email}`);
-    console.log(`📋 Current password hash: ${mentor.password?.substring(0, 10)}...`);
-    
+    console.log(
+      `📋 Current password hash: ${mentor.password?.substring(0, 10)}...`
+    );
+
     // Hash the new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-    
+
     // Update the password
     mentor.password = hashedPassword;
     await mentor.save();
-    
-    console.log(`✅ Password reset successful, new hash: ${hashedPassword.substring(0, 10)}...`);
-    
+
+    console.log(
+      `✅ Password reset successful, new hash: ${hashedPassword.substring(
+        0,
+        10
+      )}...`
+    );
+
     res.json({ message: "Password reset successfully" });
   } catch (error) {
     console.error("❌ Password reset error:", error);
-    res.status(500).json({ 
-      message: "Server error", 
-      error: error.message 
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -452,5 +590,7 @@ module.exports = {
   getMentorStudents,
   getMentorClasses,
   getMentorNotifications,
-  resetMentorPassword, // Add this new function
+  resetMentorPassword,
+  updateMentorCourse,
+  deleteMentorCourse,
 };

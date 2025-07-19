@@ -18,6 +18,8 @@ const {
   deleteMentor,
   updateMentorAvailability,
   resetMentorPassword,
+  updateMentorCourse,
+  deleteMentorCourse,
 } = require("../controllers/mentorController");
 const { protect, admin, mentorOnly } = require("../middleware/auth");
 
@@ -37,6 +39,10 @@ router.put("/availability", protect, mentorOnly, updateMentorAvailability);
 router.get("/courses", protect, mentorOnly, getMentorCourses);
 router.get("/topics", protect, mentorOnly, getMentorTopics);
 router.get("/competitions", protect, mentorOnly, getMentorCompetitions);
+
+// Course management routes
+router.put("/courses/:courseId", protect, mentorOnly, updateMentorCourse);
+router.delete("/courses/:courseId", protect, mentorOnly, deleteMentorCourse);
 
 // Parameter routes must come AFTER specific routes
 router.get("/:id", getMentorById);
