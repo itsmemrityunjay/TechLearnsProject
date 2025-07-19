@@ -171,18 +171,25 @@ const MentorDashboard = () => {
                 }
             };
 
+            console.log("Updating course with data:", updatedData);
+
+            // Use the mentor-specific course update endpoint
             const { data } = await axios.put(
-                `${API_BASE_URL}/api/courses/${courseId}`,
+                `${API_BASE_URL}/api/mentors/courses/${courseId}`,
                 updatedData,
                 config
             );
 
+            console.log("Course updated successfully:", data);
+
+            // Update the courses array with the updated course
             setCourses(courses.map(course => course._id === courseId ? data : course));
             setSelectedCourse(null);
             toast.success('Course updated successfully!');
+            setRefreshData(prev => !prev);
         } catch (error) {
-            console.error('Error updating course:', error);
-            toast.error('Failed to update course');
+            console.error('Error updating course:', error.response?.data || error);
+            toast.error(error.response?.data?.message || 'Failed to update course');
         }
     };
 
@@ -240,10 +247,15 @@ const MentorDashboard = () => {
         try {
             const token = localStorage.getItem('token');
             const formData = new FormData();
-            formData.append('video', file);
+            formData.append('file', file);
+
+            // For new courses, use the general upload endpoint
+            const endpoint = courseId
+                ? `${API_BASE_URL}/api/courses/${courseId}/video`
+                : `${API_BASE_URL}/api/upload`;
 
             const { data } = await axios.post(
-                `${API_BASE_URL}/api/courses/${courseId}/video`,
+                endpoint,
                 formData,
                 {
                     headers: {
@@ -258,8 +270,12 @@ const MentorDashboard = () => {
             );
 
             toast.success('Video uploaded successfully!');
-            setRefreshData(prev => !prev);
-            return data.videoUrl;
+            if (courseId) {
+                setRefreshData(prev => !prev);
+            }
+
+            // Return the video URL based on the endpoint used
+            return courseId ? data.videoUrl : data.fileUrl;
         } catch (error) {
             console.error('Error uploading video:', error);
             toast.error('Failed to upload video');
@@ -424,14 +440,13 @@ const MentorDashboard = () => {
                         <CourseForm
                             onSubmit={handleCreateCourse}
                             onCancel={() => setIsCreatingCourse(false)}
-                            onVideoUpload={handleVideoUpload}
+                            onVideoUpload={(file, progressCb) => handleVideoUpload(null, file, progressCb)}
                         />
                     ) : selectedCourse ? (
                         <CourseForm
                             course={selectedCourse}
                             onSubmit={(data) => handleUpdateCourse(selectedCourse._id, data)}
                             onCancel={() => setSelectedCourse(null)}
-                            onAddContent={(content) => handleAddCourseContent(selectedCourse._id, content)}
                             onVideoUpload={(file, progressCb) => handleVideoUpload(selectedCourse._id, file, progressCb)}
                         />
                     ) : (

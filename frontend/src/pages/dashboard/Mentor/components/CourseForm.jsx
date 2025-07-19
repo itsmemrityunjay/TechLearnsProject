@@ -32,11 +32,12 @@ const CourseForm = ({ course = null, onSubmit, onCancel, onAddContent, onVideoUp
 
     useEffect(() => {
         if (course) {
+            console.log('Loading course data for editing:', course);
             setFormData({
                 title: course.title || '',
                 description: course.description || '',
                 category: course.category || '',
-                courseFor: course.courseFor || 'both', // Add this line
+                courseFor: course.courseFor || 'both',
                 isPremium: course.isPremium || false,
                 price: course.price || 0,
                 thumbnail: course.thumbnail || '',
@@ -231,16 +232,12 @@ const CourseForm = ({ course = null, onSubmit, onCancel, onAddContent, onVideoUp
             _id: Date.now().toString() // Temporary ID for frontend
         };
 
-        if (course && onAddContent) {
-            // Add content to existing course
-            onAddContent(newContent);
-        } else {
-            // Add content to new course being created
-            setFormData({
-                ...formData,
-                content: [...formData.content, newContent]
-            });
-        }
+        // Always add content to the current form data
+        // The parent component will handle whether it's a new course or update
+        setFormData({
+            ...formData,
+            content: [...formData.content, newContent]
+        });
 
         // Reset content form
         setContentData({
@@ -306,12 +303,18 @@ const CourseForm = ({ course = null, onSubmit, onCancel, onAddContent, onVideoUp
             return;
         }
 
-        // Submit form data
-        onSubmit({
+        // Prepare the data to submit
+        const submitData = {
             ...formData,
             objectives: filteredObjectives,
             price: formData.isPremium ? Number(formData.price) : 0
-        });
+        };
+
+        console.log('Submitting course data:', submitData);
+        console.log('Is update mode:', !!course);
+
+        // Submit form data
+        onSubmit(submitData);
     };
 
     return (
