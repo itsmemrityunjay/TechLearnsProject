@@ -17,7 +17,7 @@ import PovertyVerification from './pages/povertyVerification';
 import MentorDash from './pages/dashboard/Mentor';
 import Course from './pages/course'; // Import the Course component
 import DetailedCourse from './pages/course/components/DetailedCourse';
-
+import About from './pages/about';
 
 const AppRoutes = () => {
     return (<>
@@ -37,6 +37,7 @@ const AppRoutes = () => {
                 <Route path="/school/register" element={<Signup />} />
                 <Route path="/below-poverty-verification" element={<PovertyVerification />} />
                 <Route path="/mentor-dashboard" element={<MentorDash />} />
+                <Route path="/about" element={<About />} />
 
                 {/* Added Course Routes */}
                 <Route path="/courses" element={<Course />} />
