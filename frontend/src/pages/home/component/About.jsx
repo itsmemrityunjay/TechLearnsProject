@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FaGraduationCap, FaLaptopCode, FaUsers, FaChartLine } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const About = () => {
+    const navigate = useNavigate();
     const fadeIn = {
         hidden: { opacity: 0, y: 20 },
         visible: {
