@@ -110,6 +110,7 @@ const About = () => {
                         <motion.button
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
+                            onClick={() => navigate('/about')}
                             className="mt-10 px-8 py-3 bg-[#013954] hover:bg-[#013954]/90 text-white rounded-lg transition-all duration-300 shadow-lg flex items-center space-x-2"
                         >
                             <span>Learn More About Us</span>
