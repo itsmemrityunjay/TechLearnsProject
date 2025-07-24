@@ -392,25 +392,21 @@ const HostCompetition = () => {
 
             // If there's a new file to upload
             if (thumbnailFile) {
-                const formData = new FormData();
-                formData.append('file', thumbnailFile);
+                try {
+                    // Use base64 encoding as a fallback for now
+                    const reader = new FileReader();
+                    const fileUploadPromise = new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = () => reject(new Error("File reading failed"));
+                        reader.readAsDataURL(thumbnailFile);
+                    });
 
-                // Fix: Add /api/ prefix to upload endpoint
-                const uploadResponse = await fetch('/api/upload', {
-                    method: 'POST',
-                    headers: {
-                        ...authHeaders,
-                        // Note: Don't set Content-Type when using FormData with files
-                    },
-                    body: formData
-                });
-
-                if (!uploadResponse.ok) {
-                    throw new Error(`Upload failed with status: ${uploadResponse.status}`);
+                    const base64Data = await fileUploadPromise;
+                    thumbnailUrl = base64Data; // Use the base64 string as the URL
+                } catch (uploadError) {
+                    console.error("File upload failed:", uploadError);
+                    throw new Error("Unable to upload file");
                 }
-
-                const uploadData = await uploadResponse.json();
-                thumbnailUrl = uploadData.url || uploadData.fileUrl;
             }
 
             // Prepare data for submission
