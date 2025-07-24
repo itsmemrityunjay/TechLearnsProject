@@ -392,44 +392,37 @@ const HostCompetition = () => {
 
             // If there's a new file to upload
             if (thumbnailFile) {
-                const formDataFile = new FormData();
-                formDataFile.append('file', thumbnailFile);
+                const formData = new FormData();
+                formData.append('file', thumbnailFile);
 
-                try {
-                    const uploadResponse = await fetch('/api/upload', {
-                        method: 'POST',
-                        headers: {
-                            ...authHeaders
-                        },
-                        body: formDataFile
-                    });
+                // Fix: Add /api/ prefix to upload endpoint
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        ...authHeaders,
+                        // Note: Don't set Content-Type when using FormData with files
+                    },
+                    body: formData
+                });
 
-                    if (uploadResponse.ok) {
-                        const uploadResult = await uploadResponse.json();
-                        thumbnailUrl = uploadResult.url;
-                    } else {
-                        const errorText = await uploadResponse.text();
-                        console.error(`Upload API error: Status ${uploadResponse.status}`, errorText);
-                        thumbnailUrl = thumbnailPreview; // Use preview as fallback
-                    }
-                } catch (uploadError) {
-                    console.error('Upload error:', uploadError);
-                    thumbnailUrl = thumbnailPreview; // Fallback
+                if (!uploadResponse.ok) {
+                    throw new Error(`Upload failed with status: ${uploadResponse.status}`);
                 }
+
+                const uploadData = await uploadResponse.json();
+                thumbnailUrl = uploadData.url || uploadData.fileUrl;
             }
 
-            // Prepare data to send to API
-            const dataToSend = {
+            // Prepare data for submission
+            const competitionData = {
                 ...formData,
                 thumbnail: thumbnailUrl
             };
 
-            // Debug information
-            console.log('Sending competition data:', JSON.stringify(dataToSend, null, 2));
-
-            // Make API request
-            const url = isEditing ? `/api/competitions/${id}` : '/api/competitions';
-            console.log(`Sending ${isEditing ? 'PUT' : 'POST'} request to ${url}`);
+            // Fix: Add /api/ prefix to competitions endpoint
+            const url = isEditing
+                ? `/api/competitions/${id}`
+                : '/api/competitions';
 
             const response = await fetch(url, {
                 method: isEditing ? 'PUT' : 'POST',
@@ -437,41 +430,28 @@ const HostCompetition = () => {
                     'Content-Type': 'application/json',
                     ...authHeaders
                 },
-                body: JSON.stringify(dataToSend),
-                credentials: 'include'
+                body: JSON.stringify(competitionData)
             });
 
-            // Better error handling
             if (!response.ok) {
-                const status = response.status;
-                let errorMessage;
-
-                // Try to get detailed error message
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.message || errorData.error || `Server returned ${status}`;
-                    console.error('Server error details:', errorData);
-                } catch (parseError) {
-                    // If response isn't JSON, get text instead
-                    const text = await response.text();
-                    console.error('Server error response:', text);
-                    errorMessage = text || `HTTP error ${status}`;
-                }
-
-                throw new Error(errorMessage || `Failed with status: ${status}`);
+                const errorData = await response.text();
+                throw new Error(`${response.status} ${errorData}`);
             }
 
-            const responseData = await response.json();
-            console.log('Competition created/updated:', responseData);
-
             setSubmitSuccess(true);
+            if (!isEditing) {
+                setFormData({
+                    // Reset form data...
+                });
+                setThumbnailPreview('');
+            }
+
             setTimeout(() => {
                 navigate('/competitions');
             }, 2000);
-
         } catch (err) {
             console.error('Error submitting competition:', err);
-            setError(err.message || 'An error occurred while submitting the competition. Please try again or contact support.');
+            setError(`Failed to submit: ${err.message}`);
         } finally {
             setLoading(false);
         }
