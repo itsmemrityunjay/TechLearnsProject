@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaClock, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaArrowLeft } from 'react-icons/fa';
-import api from '../../../utils/axiosConfig';
+import api from '../../utils/axiosConfig.js';
 import { toast } from 'react-toastify';
 
 const TakeMockTest = () => {
@@ -215,10 +215,10 @@ const TakeMockTest = () => {
                                         key={index}
                                         onClick={() => setCurrentQuestion(index)}
                                         className={`w-10 h-10 rounded-md text-sm font-medium ${currentQuestion === index
-                                                ? 'bg-blue-600 text-white'
-                                                : answers[index] !== null
-                                                    ? 'bg-green-100 text-green-800 border border-green-300'
-                                                    : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
+                                            ? 'bg-blue-600 text-white'
+                                            : answers[index] !== null
+                                                ? 'bg-green-100 text-green-800 border border-green-300'
+                                                : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
                                             }`}
                                     >
                                         {index + 1}
@@ -255,14 +255,14 @@ const TakeMockTest = () => {
                                         key={index}
                                         onClick={() => handleAnswerChange(currentQuestion, index)}
                                         className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${answers[currentQuestion] === index
-                                                ? 'border-blue-500 bg-blue-50 text-blue-900'
-                                                : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-900'
+                                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                                             }`}
                                     >
                                         <div className="flex items-center">
                                             <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${answers[currentQuestion] === index
-                                                    ? 'border-blue-500 bg-blue-500'
-                                                    : 'border-gray-300'
+                                                ? 'border-blue-500 bg-blue-500'
+                                                : 'border-gray-300'
                                                 }`}>
                                                 {answers[currentQuestion] === index && (
                                                     <div className="w-2 h-2 rounded-full bg-white"></div>
