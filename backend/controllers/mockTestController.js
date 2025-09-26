@@ -44,6 +44,7 @@ const createMockTest = async (req, res) => {
       options: q.options,
       correctAnswer: q.correctAnswer,
       explanation: q.explanation || "",
+      points: q.points || 1,
     }));
 
     // Create mock test
@@ -65,25 +66,23 @@ const createMockTest = async (req, res) => {
   }
 };
 
-// @desc    Get all mock tests
+// @desc    Get all public mock tests for students
 // @route   GET /api/mock-tests
 // @access  Public
 const getMockTests = async (req, res) => {
   try {
     // Parse query parameters
     const { category, forLevel, isPremium } = req.query;
-    const query = {};
+    const query = { isActive: true }; // Only show active tests
 
     if (category) query.category = category;
     if (forLevel) query.forLevel = forLevel;
     if (isPremium !== undefined) query.isPremium = isPremium === "true";
 
     const mockTests = await MockTest.find(query)
-      .populate({
-        path: "createdBy",
-        select: "name profileImage",
-      })
-      .select("-questions.correctAnswer -questions.explanation");
+      .populate("courseId", "title category")
+      .populate("createdBy", "firstName lastName profileImage")
+      .select("-questions.correctAnswer -questions.explanation -attempts");
 
     res.json(mockTests);
   } catch (error) {
@@ -97,12 +96,12 @@ const getMockTests = async (req, res) => {
 // @access  Public
 const getMockTestsByCategory = async (req, res) => {
   try {
-    const mockTests = await MockTest.find({ category: req.params.category })
-      .populate({
-        path: "createdBy",
-        select: "name profileImage",
-      })
-      .select("-questions.correctAnswer -questions.explanation");
+    const mockTests = await MockTest.find({ 
+      category: req.params.category,
+      isActive: true 
+    })
+      .populate("createdBy", "firstName lastName profileImage")
+      .select("-questions.correctAnswer -questions.explanation -attempts");
 
     res.json(mockTests);
   } catch (error) {
@@ -111,7 +110,7 @@ const getMockTestsByCategory = async (req, res) => {
   }
 };
 
-// @desc    Get a mock test by ID
+// @desc    Get a mock test by ID for mentor
 // @route   GET /api/mocktests/:id
 // @access  Private (Mentor only)
 const getMockTestById = async (req, res) => {
@@ -135,6 +134,67 @@ const getMockTestById = async (req, res) => {
     res.json(mockTest);
   } catch (error) {
     console.error("Error fetching mock test:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Get a mock test for student (without answers)
+// @route   GET /api/mock-tests/:id/start
+// @access  Private (Student)
+const startMockTest = async (req, res) => {
+  try {
+    const mockTest = await MockTest.findById(req.params.id)
+      .populate("courseId", "title")
+      .populate("createdBy", "firstName lastName");
+
+    if (!mockTest) {
+      return res.status(404).json({ message: "Mock test not found" });
+    }
+
+    if (!mockTest.isActive) {
+      return res.status(403).json({ message: "This test is not currently active" });
+    }
+
+    // Check if user has already attempted this test
+    const existingAttempt = mockTest.attempts.find(
+      attempt => attempt.userId.toString() === req.user._id.toString()
+    );
+
+    if (existingAttempt) {
+      return res.status(409).json({ 
+        message: "You have already attempted this test",
+        previousAttempt: {
+          score: existingAttempt.score,
+          maxScore: existingAttempt.maxScore,
+          percentage: existingAttempt.percentage,
+          submittedAt: existingAttempt.submittedAt
+        }
+      });
+    }
+
+    // Return mock test without correct answers and explanations
+    const testForStudent = {
+      _id: mockTest._id,
+      title: mockTest.title,
+      description: mockTest.description,
+      timeLimit: mockTest.timeLimit,
+      passingScore: mockTest.passingScore,
+      courseId: mockTest.courseId,
+      createdBy: mockTest.createdBy,
+      questions: mockTest.questions.map((q, index) => ({
+        _id: q._id,
+        questionNumber: index + 1,
+        question: q.question,
+        options: q.options,
+        points: q.points || 1,
+      })),
+      totalQuestions: mockTest.questions.length,
+      totalPoints: mockTest.questions.reduce((sum, q) => sum + (q.points || 1), 0),
+    };
+
+    res.json(testForStudent);
+  } catch (error) {
+    console.error("Error starting mock test:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -270,76 +330,214 @@ const takeMockTest = async (req, res) => {
 
 // @desc    Submit mock test answers
 // @route   POST /api/mock-tests/:id/submit
-// @access  Private
+// @access  Private (Student)
 const submitMockTest = async (req, res) => {
   try {
-    const { answers } = req.body;
-    const mockTest = await MockTest.findById(req.params.id);
+    const { answers, timeSpent } = req.body;
+    const mockTestId = req.params.id;
+    const userId = req.user._id;
+
+    console.log("Submitting mock test:", { mockTestId, userId, answers, timeSpent });
+
+    const mockTest = await MockTest.findById(mockTestId);
 
     if (!mockTest) {
       return res.status(404).json({ message: "Mock test not found" });
     }
 
+    if (!mockTest.isActive) {
+      return res.status(403).json({ message: "This test is not currently active" });
+    }
+
+    // Check if user has already attempted this test
+    const existingAttempt = mockTest.attempts.find(
+      attempt => attempt.userId.toString() === userId.toString()
+    );
+
+    if (existingAttempt) {
+      return res.status(409).json({ message: "You have already submitted this test" });
+    }
+
     // Calculate score
     let score = 0;
     let maxScore = 0;
+    const results = [];
 
     mockTest.questions.forEach((question, index) => {
       const points = question.points || 1;
       maxScore += points;
-
-      if (answers[index] === question.correctAnswer) {
+      
+      const userAnswer = answers[index];
+      const isCorrect = userAnswer === question.correctAnswer;
+      
+      if (isCorrect) {
         score += points;
       }
+
+      results.push({
+        questionNumber: index + 1,
+        question: question.question,
+        options: question.options,
+        userAnswer: userAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect: isCorrect,
+        explanation: question.explanation,
+        points: points,
+        earnedPoints: isCorrect ? points : 0,
+      });
     });
 
-    // Store result in user's mock test results
-    const user = await User.findById(req.user._id);
+    const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const passed = percentage >= mockTest.passingScore;
+
+    // Add attempt to mock test
+    mockTest.attempts.push({
+      userId: userId,
+      answers: answers,
+      score: score,
+      maxScore: maxScore,
+      percentage: percentage,
+      timeSpent: timeSpent || 0,
+      submittedAt: new Date(),
+    });
+
+    // Update statistics
+    mockTest.totalAttempts += 1;
+    const totalScore = mockTest.attempts.reduce((sum, attempt) => sum + attempt.percentage, 0);
+    mockTest.averageScore = Math.round(totalScore / mockTest.totalAttempts);
+
+    await mockTest.save();
+
+    // Update user's mock test results
+    const user = await User.findById(userId);
     user.mocktestResults.push({
       testId: mockTest._id,
-      score,
-      maxScore,
-      takenAt: Date.now(),
+      score: score,
+      maxScore: maxScore,
+      percentage: percentage,
+      passed: passed,
+      takenAt: new Date(),
     });
 
     await user.save();
 
-    // Return results with explanations
-    const results = mockTest.questions.map((question, index) => ({
-      question: question.question,
-      userAnswer: answers[index],
-      correctAnswer: question.correctAnswer,
-      isCorrect: answers[index] === question.correctAnswer,
-      explanation: question.explanation,
-      points: question.points || 1,
-    }));
+    // Return detailed results
+    const response = {
+      success: true,
+      results: {
+        testId: mockTest._id,
+        testTitle: mockTest.title,
+        score: score,
+        maxScore: maxScore,
+        percentage: percentage,
+        passed: passed,
+        passingScore: mockTest.passingScore,
+        timeSpent: timeSpent || 0,
+        totalQuestions: mockTest.questions.length,
+        correctAnswers: results.filter(r => r.isCorrect).length,
+        submittedAt: new Date(),
+        questions: results,
+      },
+    };
 
-    res.json({
-      score,
-      maxScore,
-      percentage: (score / maxScore) * 100,
-      results,
-      passThreshold: 70, // Example threshold
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error submitting mock test:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 // @desc    Get user's mock test results
-// @route   GET /api/mock-tests/results
-// @access  Private
+// @route   GET /api/mock-tests/my-results
+// @access  Private (Student)
+const getUserMockTestResults = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    const user = await User.findById(userId)
+      .populate({
+        path: "mocktestResults.testId",
+        select: "title description courseId createdBy",
+        populate: {
+          path: "courseId",
+          select: "title"
+        }
+      });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      results: user.mocktestResults.sort((a, b) => new Date(b.takenAt) - new Date(a.takenAt))
+    });
+  } catch (error) {
+    console.error("Error fetching user mock test results:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Get mock test results for mentor (all attempts)
+// @route   GET /api/mocktests/:id/results
+// @access  Private (Mentor only)
 const getMockTestResults = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: "mocktestResults.testId",
-      select: "title category forLevel",
-    });
+    const mockTest = await MockTest.findById(req.params.id)
+      .populate("attempts.userId", "firstName lastName email")
+      .populate("courseId", "title");
 
-    res.json(user.mocktestResults);
+    if (!mockTest) {
+      return res.status(404).json({ message: "Mock test not found" });
+    }
+
+    // Check if the mentor is the creator
+    if (!mockTest.createdBy.equals(req.mentor._id)) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to access these results" });
+    }
+
+    const statistics = {
+      totalAttempts: mockTest.totalAttempts,
+      averageScore: mockTest.averageScore,
+      passRate: mockTest.attempts.length > 0 
+        ? Math.round((mockTest.attempts.filter(a => a.percentage >= mockTest.passingScore).length / mockTest.attempts.length) * 100)
+        : 0,
+      highestScore: mockTest.attempts.length > 0 
+        ? Math.max(...mockTest.attempts.map(a => a.percentage))
+        : 0,
+      lowestScore: mockTest.attempts.length > 0 
+        ? Math.min(...mockTest.attempts.map(a => a.percentage))
+        : 0,
+    };
+
+    const results = {
+      testInfo: {
+        _id: mockTest._id,
+        title: mockTest.title,
+        description: mockTest.description,
+        courseId: mockTest.courseId,
+        totalQuestions: mockTest.questions.length,
+        passingScore: mockTest.passingScore,
+        timeLimit: mockTest.timeLimit,
+      },
+      statistics: statistics,
+      attempts: mockTest.attempts.map(attempt => ({
+        _id: attempt._id,
+        student: attempt.userId,
+        score: attempt.score,
+        maxScore: attempt.maxScore,
+        percentage: attempt.percentage,
+        passed: attempt.percentage >= mockTest.passingScore,
+        timeSpent: attempt.timeSpent,
+        submittedAt: attempt.submittedAt,
+      })).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)),
+    };
+
+    res.json(results);
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching mock test results:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -390,8 +588,9 @@ module.exports = {
   getMockTestById,
   updateMockTest,
   deleteMockTest,
-  takeMockTest,
+  startMockTest,
   submitMockTest,
+  getUserMockTestResults,
   getMockTestResults,
   getMockTestsByCategory,
   getMockTestsByMentor,

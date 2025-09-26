@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { FaEdit, FaChartBar, FaClipboardList } from 'react-icons/fa';
+import { FaEdit, FaChartBar, FaClipboardList, FaTrash } from 'react-icons/fa';
 
-const MockTestsSection = ({ tests, onNewTest, onEditTest, onViewResults }) => {
+const MockTestsSection = ({ tests, onNewTest, onEditTest, onViewResults, onDeleteTest }) => {
     return (
         <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
@@ -99,6 +99,12 @@ const MockTestsSection = ({ tests, onNewTest, onEditTest, onViewResults }) => {
                                             className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                         >
                                             <FaChartBar className="mr-2" /> Results
+                                        </button>
+                                        <button
+                                            onClick={() => onDeleteTest(test._id)}
+                                            className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                        >
+                                            <FaTrash className="mr-2" /> Delete
                                         </button>
                                     </div>
                                 </div>

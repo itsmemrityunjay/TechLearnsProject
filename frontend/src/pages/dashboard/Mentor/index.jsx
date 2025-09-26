@@ -81,6 +81,15 @@ const MentorDashboard = () => {
                 console.log("Courses received:", coursesData);
                 setCourses(coursesData);
 
+                // Fetch mentor's mock tests
+                console.log("Fetching mentor mock tests...");
+                const { data: mockTestsData } = await api.get(
+                    `${API_BASE_URL}/api/mocktests`,
+                    config
+                );
+                console.log("Mock tests received:", mockTestsData);
+                setMockTests(mockTestsData);
+
                 // Fetch other data...
             } catch (error) {
                 console.error("Error fetching mentor data:", error);
@@ -305,12 +314,70 @@ const MentorDashboard = () => {
 
             console.log("Mock test created successfully:", data);
             setMockTests([...mockTests, data]);
-            setIsCreatingMockTest(false);
+            setIsCreatingTest(false);
+            setSelectedTest(null);
             toast.success('Mock test created successfully!');
             setRefreshData(prev => !prev);
         } catch (error) {
             console.error('Error creating mock test:', error.response?.data || error);
             toast.error(error.response?.data?.message || 'Failed to create mock test');
+        }
+    };
+
+    // Handle editing a mock test
+    const handleEditMockTest = async (mockTestId, mockTestData) => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            console.log("Updating mock test with data:", mockTestData);
+
+            const { data } = await axios.put(
+                `${API_BASE_URL}/api/mocktests/${mockTestId}`,
+                mockTestData,
+                config
+            );
+
+            console.log("Mock test updated successfully:", data);
+            setMockTests(mockTests.map(test => test._id === mockTestId ? data : test));
+            setIsCreatingTest(false);
+            setSelectedTest(null);
+            toast.success('Mock test updated successfully!');
+        } catch (error) {
+            console.error('Error updating mock test:', error.response?.data || error);
+            toast.error(error.response?.data?.message || 'Failed to update mock test');
+        }
+    };
+
+    // Handle viewing mock test results
+    const handleViewMockTestResults = (testId) => {
+        navigate(`/mentor/mock-test-results/${testId}`);
+    };
+
+    // Handle deleting a mock test
+    const handleDeleteMockTest = async (testId) => {
+        if (!window.confirm('Are you sure you want to delete this mock test?')) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            await axios.delete(`${API_BASE_URL}/api/mocktests/${testId}`, config);
+
+            setMockTests(mockTests.filter(test => test._id !== testId));
+            toast.success('Mock test deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting mock test:', error);
+            toast.error('Failed to delete mock test');
         }
     };
 
@@ -470,7 +537,7 @@ const MentorDashboard = () => {
                         <MockTestForm
                             test={selectedTest}
                             onSubmit={(data) => {
-                                // Handle update mock test
+                                handleEditMockTest(selectedTest._id, data);
                             }}
                             onCancel={() => setSelectedTest(null)}
                             courses={courses}
@@ -480,6 +547,8 @@ const MentorDashboard = () => {
                             tests={mockTests}
                             onNewTest={() => setIsCreatingTest(true)}
                             onEditTest={setSelectedTest}
+                            onViewResults={handleViewMockTestResults}
+                            onDeleteTest={handleDeleteMockTest}
                         />
                     )}
                 </TabPanel>

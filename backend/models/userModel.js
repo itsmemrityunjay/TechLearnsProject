@@ -131,6 +131,8 @@ const userSchema = new mongoose.Schema(
         },
         score: Number,
         maxScore: Number,
+        percentage: Number,
+        passed: Boolean,
         takenAt: { type: Date, default: Date.now },
       },
     ],

@@ -53,8 +53,37 @@ const mockTestSchema = new mongoose.Schema(
           max: 3,
         },
         explanation: String,
+        points: {
+          type: Number,
+          default: 1,
+        },
       },
     ],
+    attempts: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        answers: [Number],
+        score: Number,
+        maxScore: Number,
+        percentage: Number,
+        timeSpent: Number, // in minutes
+        submittedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    totalAttempts: {
+      type: Number,
+      default: 0,
+    },
+    averageScore: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

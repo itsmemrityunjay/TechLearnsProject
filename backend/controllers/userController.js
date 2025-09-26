@@ -350,8 +350,40 @@ const getUserCompetitions = async (req, res) => {
 };
 
 const getUserMocktestResults = async (req, res) => {
-  // Implementation for getting user mocktest results
-  res.json({ message: "Get user mocktest results endpoint" });
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: "mocktestResults.testId",
+      select: "title description courseId",
+      populate: {
+        path: "courseId",
+        select: "title"
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const results = user.mocktestResults.map(result => ({
+      _id: result._id,
+      testId: result.testId,
+      score: result.score,
+      maxScore: result.maxScore,
+      percentage: result.percentage,
+      passed: result.passed,
+      takenAt: result.takenAt,
+      testTitle: result.testId?.title || 'Unknown Test',
+      courseTitle: result.testId?.courseId?.title || 'General'
+    }));
+
+    res.json({
+      success: true,
+      results: results.sort((a, b) => new Date(b.takenAt) - new Date(a.takenAt))
+    });
+  } catch (error) {
+    console.error("Error fetching user mock test results:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 const updateUserAttendance = async (req, res) => {

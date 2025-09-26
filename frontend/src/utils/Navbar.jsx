@@ -59,6 +59,7 @@ const Navbar = () => {
                 { label: "LOGIN", icon: <User />, to: "/login" },
                 { label: "REGISTER", icon: <FileText />, to: "/register" },
                 { label: "COURSES", icon: <School />, to: "/courses" },
+                { label: "MOCK TESTS", icon: <FileText />, to: "/mock-tests" },
             ];
         }
 
@@ -66,6 +67,7 @@ const Navbar = () => {
         const items = [
             { label: "HOME", icon: <Home />, to: "/" },
             { label: "COURSES", icon: <School />, to: "/courses" },
+            { label: "MOCK TESTS", icon: <FileText />, to: "/mock-tests" },
             { label: "COMPETITIONS", icon: <Trophy />, to: "/competitions" },
             { label: "NOTEBOOK", icon: <FileText />, to: "/notebook" },  // Added Notebook item
             { label: "DISCUSSIONS", icon: <MessageSquare />, to: "/discussions" }

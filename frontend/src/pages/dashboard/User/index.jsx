@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import api from '../../../utils/axiosConfig';
+import MockTestResults from './components/MockTestResults';
 
 // Fix the API URL throughout the component
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -964,7 +965,7 @@ const UserProfile = () => {
 
             {/* Stats */}
             <div className="mb-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
                   <p className="text-2xl font-bold text-[#f99e1c]">
                     {user.registeredCourses?.length || 0}
@@ -976,6 +977,12 @@ const UserProfile = () => {
                     {user.competitionsParticipated?.length || 0}
                   </p>
                   <p className="text-sm text-[#013954] font-medium">Competitions</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
+                  <p className="text-2xl font-bold text-[#f99e1c]">
+                    {user.mocktestResults?.length || 0}
+                  </p>
+                  <p className="text-sm text-[#013954] font-medium">Tests Taken</p>
                 </div>
                 <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm text-center transition-all hover:shadow-md hover:border-[#f99e1c]">
                   <p className="text-2xl font-bold text-[#f99e1c]">
@@ -1009,6 +1016,11 @@ const UserProfile = () => {
               ) : (
                 <p className="text-gray-500 italic">No skills added</p>
               )}
+            </div>
+
+            {/* Mock Test Results */}
+            <div className="mb-6">
+              <MockTestResults />
             </div>
 
             {/* Education */}

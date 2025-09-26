@@ -153,6 +153,7 @@ const courseRoutes = require("./routes/courseRoutes");
 const topicRoutes = require("./routes/topicRoutes");
 const competitionRoutes = require("./routes/competitionRoutes");
 const mockTestRoutes = require("./routes/mockTestRoutes");
+const publicMockTestRoutes = require("./routes/publicMockTestRoutes");
 const notebookRoutes = require("./routes/notebookRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const paymentRoutes = require("./routes/paymentRoutes"); // Uncomment this line
@@ -164,10 +165,10 @@ app.use("/api/schools", schoolRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/topics", topicRoutes);
 app.use("/api/competitions", competitionRoutes);
-app.use("/api/mock-tests", mockTestRoutes);
+app.use("/api/mock-tests", publicMockTestRoutes); // Public mock test routes for students
+app.use("/api/mocktests", mockTestRoutes); // Mentor-specific mock test routes
 app.use("/api/notebooks", notebookRoutes);
 app.use("/api/upload", uploadRoutes);
-app.use("/api/mocktests", mockTestRoutes);
 app.use("/api/payments", paymentRoutes); // Uncomment this line
 
 // Error handling middleware
