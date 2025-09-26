@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaBell, FaTrash } from 'react-icons/fa';
 
-const NotificationsSection = ({ notifications = [], onMarkAsRead, onDeleteAll }) => {
+const NotificationsSection = ({ 
+    notifications = [], 
+    onMarkAsRead, 
+    onDeleteNotification, 
+    onDeleteAllNotifications,
+    onRefresh 
+}) => {
     const [filter, setFilter] = useState('all');
 
     // Ensure notifications is always an array
@@ -70,7 +76,7 @@ const NotificationsSection = ({ notifications = [], onMarkAsRead, onDeleteAll })
                     </div>
                     {notificationsArray.length > 0 && (
                         <button
-                            onClick={onDeleteAll}
+                            onClick={onDeleteAllNotifications}
                             className="mt-4 md:mt-0 px-4 py-2 bg-white text-indigo-600 rounded-md hover:bg-gray-100 transition-colors"
                         >
                             <FaTrash className="inline mr-1" /> Clear All
@@ -122,7 +128,6 @@ const NotificationsSection = ({ notifications = [], onMarkAsRead, onDeleteAll })
                                     ? 'bg-white border-gray-200'
                                     : 'bg-indigo-50 border-indigo-200'
                                     }`}
-                                onClick={() => !notification.read && onMarkAsRead(notification._id)}
                             >
                                 <div className="flex">
                                     <div className="flex-shrink-0 mt-0.5">
@@ -133,9 +138,29 @@ const NotificationsSection = ({ notifications = [], onMarkAsRead, onDeleteAll })
                                             <p className={`text-sm font-medium ${notification.read ? 'text-gray-900' : 'text-indigo-900'}`}>
                                                 {notification.title || 'Notification'}
                                             </p>
-                                            <p className="text-xs text-gray-500">
-                                                {formatDate(notification.createdAt)}
-                                            </p>
+                                            <div className="flex items-center space-x-2">
+                                                <p className="text-xs text-gray-500">
+                                                    {formatDate(notification.createdAt)}
+                                                </p>
+                                                <div className="flex space-x-1">
+                                                    {!notification.read && (
+                                                        <button
+                                                            onClick={() => onMarkAsRead(notification._id)}
+                                                            className="text-indigo-600 hover:text-indigo-800 text-xs"
+                                                            title="Mark as read"
+                                                        >
+                                                            <FaCheckCircle />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => onDeleteNotification(notification._id)}
+                                                        className="text-red-500 hover:text-red-700 text-xs"
+                                                        title="Delete notification"
+                                                    >
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                         <p className={`mt-1 text-sm ${notification.read ? 'text-gray-600' : 'text-indigo-700'}`}>
                                             {notification.message}

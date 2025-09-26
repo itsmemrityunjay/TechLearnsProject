@@ -8,7 +8,15 @@ const {
   getAllMentors,
   getMentorById,
   getMentorStudents,
+  getStudentDetails,
+  sendMessageToStudent,
+  getStudentAnalytics,
   getMentorNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications,
+  createNotification,
   getMentorCourses,
   getMentorTopics,
   getMentorCompetitions,
@@ -32,7 +40,15 @@ router.get("/", getAllMentors);
 router.get("/profile", protect, mentorOnly, getMentorProfile);
 router.put("/profile", protect, mentorOnly, updateMentorProfile);
 router.get("/students", protect, mentorOnly, getMentorStudents);
+router.get("/students/analytics", protect, mentorOnly, getStudentAnalytics);
+router.get("/students/:id", protect, mentorOnly, getStudentDetails);
+router.post("/students/:id/message", protect, mentorOnly, sendMessageToStudent);
 router.get("/notifications", protect, mentorOnly, getMentorNotifications);
+router.post("/notifications", protect, mentorOnly, createNotification);
+router.put("/notifications/mark-all-read", protect, mentorOnly, markAllNotificationsAsRead);
+router.delete("/notifications", protect, mentorOnly, deleteAllNotifications);
+router.put("/notifications/:id/read", protect, mentorOnly, markNotificationAsRead);
+router.delete("/notifications/:id", protect, mentorOnly, deleteNotification);
 router.put("/availability", protect, mentorOnly, updateMentorAvailability);
 router.get("/courses", protect, mentorOnly, getMentorCourses);
 router.get("/topics", protect, mentorOnly, getMentorTopics);

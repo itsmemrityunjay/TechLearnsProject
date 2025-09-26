@@ -107,6 +107,15 @@ const MentorDashboard = () => {
                 );
                 console.log("Students received:", studentsData);
                 setStudents(studentsData);
+
+                // Fetch mentor's notifications
+                console.log("Fetching mentor notifications...");
+                const { data: notificationsData } = await api.get(
+                    `${API_BASE_URL}/api/mentors/notifications`,
+                    config
+                );
+                console.log("Notifications received:", notificationsData);
+                setNotifications(notificationsData);
             } catch (error) {
                 console.error("Error fetching mentor data:", error);
                 if (error.response && error.response.status === 401) {
@@ -460,6 +469,144 @@ const MentorDashboard = () => {
         }
     };
 
+    // Handler for marking notification as read
+    const handleMarkNotificationAsRead = async (notificationId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            await axios.put(
+                `${API_BASE_URL}/api/mentors/notifications/${notificationId}/read`,
+                {},
+                config
+            );
+
+            // Update notifications state
+            setNotifications(notifications.map(notification => 
+                notification._id === notificationId 
+                    ? { ...notification, read: true, readAt: new Date() }
+                    : notification
+            ));
+
+            toast.success('Notification marked as read');
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            toast.error('Failed to mark notification as read');
+        }
+    };
+
+    // Handler for marking all notifications as read
+    const handleMarkAllNotificationsAsRead = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            await axios.put(
+                `${API_BASE_URL}/api/mentors/notifications/mark-all-read`,
+                {},
+                config
+            );
+
+            // Update notifications state
+            setNotifications(notifications.map(notification => ({
+                ...notification,
+                read: true,
+                readAt: new Date()
+            })));
+
+            toast.success('All notifications marked as read');
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+            toast.error('Failed to mark all notifications as read');
+        }
+    };
+
+    // Handler for deleting a notification
+    const handleDeleteNotification = async (notificationId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            await axios.delete(
+                `${API_BASE_URL}/api/mentors/notifications/${notificationId}`,
+                config
+            );
+
+            // Remove notification from state
+            setNotifications(notifications.filter(notification => 
+                notification._id !== notificationId
+            ));
+
+            toast.success('Notification deleted');
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            toast.error('Failed to delete notification');
+        }
+    };
+
+    // Handler for deleting all notifications
+    const handleDeleteAllNotifications = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            await axios.delete(
+                `${API_BASE_URL}/api/mentors/notifications`,
+                config
+            );
+
+            // Clear notifications state
+            setNotifications([]);
+
+            toast.success('All notifications deleted');
+        } catch (error) {
+            console.error('Error deleting all notifications:', error);
+            toast.error('Failed to delete all notifications');
+        }
+    };
+
+    // Handler for sending message to student
+    const handleSendMessageToStudent = async (studentId, message, subject) => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            await axios.post(
+                `${API_BASE_URL}/api/mentors/students/${studentId}/message`,
+                { message, subject },
+                config
+            );
+
+            toast.success('Message sent successfully');
+        } catch (error) {
+            console.error('Error sending message:', error);
+            toast.error('Failed to send message');
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -600,15 +747,20 @@ const MentorDashboard = () => {
                 </TabPanel>
 
                 <TabPanel>
-                    <StudentsSection students={students} />
+                    <StudentsSection 
+                        students={students} 
+                        onGetStudentDetails={handleGetStudentDetails}
+                        onSendMessage={handleSendMessage}
+                    />
                 </TabPanel>
 
                 <TabPanel>
                     <NotificationsSection
                         notifications={notifications}
-                        onMarkAsRead={(id) => {
-                            // Handle marking notification as read
-                        }}
+                        onMarkAsRead={handleMarkNotificationAsRead}
+                        onDeleteNotification={handleDeleteNotification}
+                        onDeleteAllNotifications={handleDeleteAllNotifications}
+                        onRefresh={() => setRefreshData(prev => !prev)}
                     />
                 </TabPanel>
             </Tabs>

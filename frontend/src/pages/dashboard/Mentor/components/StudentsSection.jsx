@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaFilter, FaEnvelope } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaEnvelope, FaEye, FaTimes } from 'react-icons/fa';
 
-const StudentsSection = ({ students = [] }) => {
+const StudentsSection = ({ students = [], onGetStudentDetails, onSendMessage }) => {
     // Ensure students is always an array
     const studentsArray = Array.isArray(students) ? students : [];
 
@@ -9,6 +9,10 @@ const StudentsSection = ({ students = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCriteria, setFilterCriteria] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [showMessageModal, setShowMessageModal] = useState(false);
+    const [messageContent, setMessageContent] = useState('');
+    const [messageSubject, setMessageSubject] = useState('');
 
     useEffect(() => {
         applyFilters();
@@ -40,6 +44,32 @@ const StudentsSection = ({ students = [] }) => {
         }
 
         setFilteredStudents(result);
+    };
+
+    const handleViewStudent = async (student) => {
+        if (onGetStudentDetails) {
+            const details = await onGetStudentDetails(student._id);
+            setSelectedStudent({ ...student, ...details });
+        } else {
+            setSelectedStudent(student);
+        }
+    };
+
+    const handleSendMessage = (student) => {
+        setSelectedStudent(student);
+        setShowMessageModal(true);
+        setMessageSubject(`Message from your mentor`);
+        setMessageContent('');
+    };
+
+    const handleSubmitMessage = async () => {
+        if (onSendMessage && selectedStudent && messageContent.trim()) {
+            await onSendMessage(selectedStudent._id, messageSubject, messageContent);
+            setShowMessageModal(false);
+            setMessageContent('');
+            setMessageSubject('');
+            setSelectedStudent(null);
+        }
     };
 
     return (
@@ -213,12 +243,22 @@ const StudentsSection = ({ students = [] }) => {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <button
-                                                className="text-indigo-600 hover:text-indigo-900 mr-3"
-                                                title="Send message"
-                                            >
-                                                <FaEnvelope />
-                                            </button>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handleViewStudent(student)}
+                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    title="View details"
+                                                >
+                                                    <FaEye />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleSendMessage(student)}
+                                                    className="text-green-600 hover:text-green-900"
+                                                    title="Send message"
+                                                >
+                                                    <FaEnvelope />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -265,6 +305,77 @@ const StudentsSection = ({ students = [] }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Message Modal */}
+            {showMessageModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">
+                                Send Message to {selectedStudent?.firstName} {selectedStudent?.lastName}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowMessageModal(false);
+                                    setSelectedStudent(null);
+                                    setMessageContent('');
+                                    setMessageSubject('');
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSubmitMessage(); }}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Subject
+                                </label>
+                                <input
+                                    type="text"
+                                    value={messageSubject}
+                                    onChange={(e) => setMessageSubject(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Message
+                                </label>
+                                <textarea
+                                    value={messageContent}
+                                    onChange={(e) => setMessageContent(e.target.value)}
+                                    rows={4}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Type your message here..."
+                                    required
+                                />
+                            </div>
+                            <div className="flex space-x-3">
+                                <button
+                                    type="submit"
+                                    className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    Send Message
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowMessageModal(false);
+                                        setSelectedStudent(null);
+                                        setMessageContent('');
+                                        setMessageSubject('');
+                                    }}
+                                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

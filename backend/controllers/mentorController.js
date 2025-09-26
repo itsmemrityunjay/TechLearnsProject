@@ -372,6 +372,176 @@ const getMentorStudents = async (req, res) => {
   }
 };
 
+// @desc    Get detailed student information
+// @route   GET /api/mentors/students/:id
+// @access  Private (Mentor only)
+const getStudentDetails = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+    const studentId = req.params.id;
+
+    // Find all courses created by this mentor
+    const courses = await Course.find({ createdBy: mentorId });
+    const courseIds = courses.map((course) => course._id);
+
+    // Find the student and ensure they're enrolled in mentor's courses
+    const student = await User.findOne({
+      _id: studentId,
+      enrolledCourses: { $in: courseIds },
+    })
+    .select("-password")
+    .populate("enrolledCourses", "title category")
+    .populate("mockTestResults.mockTestId", "title");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found or not enrolled in your courses" });
+    }
+
+    // Get student's progress in mentor's courses
+    const studentProgress = [];
+    for (const course of courses) {
+      if (student.enrolledCourses.some(enrolled => enrolled._id.equals(course._id))) {
+        const progress = student.courseProgress.find(p => p.courseId.equals(course._id));
+        studentProgress.push({
+          course: course,
+          progress: progress ? progress.progress : 0,
+          completedTopics: progress ? progress.completedTopics : [],
+          lastAccessed: progress ? progress.lastAccessed : null
+        });
+      }
+    }
+
+    // Get student's mock test results for mentor's tests
+    const mockTests = await MockTest.find({ createdBy: mentorId });
+    const studentTestResults = student.mockTestResults.filter(result => 
+      mockTests.some(test => test._id.equals(result.mockTestId))
+    );
+
+    res.json({
+      student,
+      courseProgress: studentProgress,
+      mockTestResults: studentTestResults
+    });
+  } catch (error) {
+    console.error("Error fetching student details:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Send message to student
+// @route   POST /api/mentors/students/:id/message
+// @access  Private (Mentor only)
+const sendMessageToStudent = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+    const studentId = req.params.id;
+    const { message, subject } = req.body;
+
+    // Verify student is enrolled in mentor's courses
+    const courses = await Course.find({ createdBy: mentorId });
+    const courseIds = courses.map((course) => course._id);
+
+    const student = await User.findOne({
+      _id: studentId,
+      enrolledCourses: { $in: courseIds },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found or not enrolled in your courses" });
+    }
+
+    // Create notification for student
+    const notification = new Notification({
+      recipient: studentId,
+      recipientType: "user",
+      title: subject || "Message from Mentor",
+      message: message,
+      type: "message",
+      read: false,
+      sender: mentorId,
+      senderType: "mentor"
+    });
+
+    await notification.save();
+
+    res.json({ message: "Message sent successfully" });
+  } catch (error) {
+    console.error("Error sending message to student:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Get student performance analytics
+// @route   GET /api/mentors/students/analytics
+// @access  Private (Mentor only)
+const getStudentAnalytics = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+
+    // Find all courses created by this mentor
+    const courses = await Course.find({ createdBy: mentorId });
+    const courseIds = courses.map((course) => course._id);
+
+    // Find students enrolled in these courses
+    const students = await User.find({
+      enrolledCourses: { $in: courseIds },
+    }).select("-password");
+
+    // Calculate analytics
+    const analytics = {
+      totalStudents: students.length,
+      activeStudents: 0,
+      inactiveStudents: 0,
+      averageProgress: 0,
+      courseEnrollments: {},
+      performanceDistribution: {
+        excellent: 0,
+        good: 0,
+        average: 0,
+        poor: 0
+      }
+    };
+
+    let totalProgress = 0;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    for (const student of students) {
+      // Check if student is active
+      if (student.lastActive && new Date(student.lastActive) >= thirtyDaysAgo) {
+        analytics.activeStudents++;
+      } else {
+        analytics.inactiveStudents++;
+      }
+
+      // Calculate average progress
+      if (student.courseProgress && student.courseProgress.length > 0) {
+        const studentAverage = student.courseProgress.reduce((sum, progress) => 
+          sum + (progress.progress || 0), 0) / student.courseProgress.length;
+        totalProgress += studentAverage;
+
+        // Performance distribution
+        if (studentAverage >= 90) analytics.performanceDistribution.excellent++;
+        else if (studentAverage >= 70) analytics.performanceDistribution.good++;
+        else if (studentAverage >= 50) analytics.performanceDistribution.average++;
+        else analytics.performanceDistribution.poor++;
+      }
+
+      // Course enrollments
+      for (const courseId of student.enrolledCourses) {
+        const courseIdStr = courseId.toString();
+        analytics.courseEnrollments[courseIdStr] = (analytics.courseEnrollments[courseIdStr] || 0) + 1;
+      }
+    }
+
+    analytics.averageProgress = students.length > 0 ? totalProgress / students.length : 0;
+
+    res.json(analytics);
+  } catch (error) {
+    console.error("Error fetching student analytics:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // @desc    Get notifications for this mentor
 // @route   GET /api/mentors/notifications
 // @access  Private (Mentor only)
@@ -387,6 +557,136 @@ const getMentorNotifications = async (req, res) => {
     res.json(notifications);
   } catch (error) {
     console.error("Error fetching mentor notifications:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Mark notification as read
+// @route   PUT /api/mentors/notifications/:id/read
+// @access  Private (Mentor only)
+const markNotificationAsRead = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+    const notificationId = req.params.id;
+
+    const notification = await Notification.findOneAndUpdate(
+      { 
+        _id: notificationId, 
+        recipient: mentorId, 
+        recipientType: "mentor" 
+      },
+      { read: true, readAt: new Date() },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    res.json({ message: "Notification marked as read", notification });
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Mark all notifications as read
+// @route   PUT /api/mentors/notifications/mark-all-read
+// @access  Private (Mentor only)
+const markAllNotificationsAsRead = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+
+    await Notification.updateMany(
+      { 
+        recipient: mentorId, 
+        recipientType: "mentor",
+        read: false 
+      },
+      { 
+        read: true, 
+        readAt: new Date() 
+      }
+    );
+
+    res.json({ message: "All notifications marked as read" });
+  } catch (error) {
+    console.error("Error marking all notifications as read:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Delete notification
+// @route   DELETE /api/mentors/notifications/:id
+// @access  Private (Mentor only)
+const deleteNotification = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+    const notificationId = req.params.id;
+
+    const notification = await Notification.findOneAndDelete({
+      _id: notificationId,
+      recipient: mentorId,
+      recipientType: "mentor"
+    });
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    res.json({ message: "Notification deleted" });
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Delete all notifications
+// @route   DELETE /api/mentors/notifications
+// @access  Private (Mentor only)
+const deleteAllNotifications = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+
+    const result = await Notification.deleteMany({
+      recipient: mentorId,
+      recipientType: "mentor"
+    });
+
+    res.json({ 
+      message: `Deleted ${result.deletedCount} notifications` 
+    });
+  } catch (error) {
+    console.error("Error deleting all notifications:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Create notification for mentor
+// @route   POST /api/mentors/notifications
+// @access  Private (Mentor only)
+const createNotification = async (req, res) => {
+  try {
+    const mentorId = req.mentor._id;
+    const { title, message, type } = req.body;
+
+    const notification = new Notification({
+      recipient: mentorId,
+      recipientType: "mentor",
+      title,
+      message,
+      type: type || "info",
+      read: false
+    });
+
+    await notification.save();
+
+    res.status(201).json({ 
+      message: "Notification created", 
+      notification 
+    });
+  } catch (error) {
+    console.error("Error creating notification:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -569,7 +869,15 @@ module.exports = {
   getMentorReviews,
   addMentorReview,
   getMentorStudents,
+  getStudentDetails,
+  sendMessageToStudent,
+  getStudentAnalytics,
   getMentorNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications,
+  createNotification,
   resetMentorPassword,
   updateMentorCourse,
   deleteMentorCourse,
