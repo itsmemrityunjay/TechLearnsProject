@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaClock, FaQuestionCircle, FaTrophy, FaPlay, FaUser, FaBook } from 'react-icons/fa';
-import api from '../../../utils/axiosConfig';
+import api from '../../utils/axiosConfig.js';
 import { toast } from 'react-toastify';
 
 const MockTestList = () => {

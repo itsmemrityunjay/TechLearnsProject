@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Import your logo
 import logo from '../../assets/Logo.png'; // Adjust path as needed
-import api from '../../utils/axiosConfig';
+import api from '../../utils/axiosConfig.js'; // Adjust path as needed
 
 const Login = () => {
     const [formData, setFormData] = useState({

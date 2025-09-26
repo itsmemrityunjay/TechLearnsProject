@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../../utils/axiosConfig';
+import api from '../../utils/axiosConfig.js';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Import your logo
