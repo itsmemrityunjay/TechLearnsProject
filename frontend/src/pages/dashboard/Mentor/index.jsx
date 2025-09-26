@@ -299,11 +299,19 @@ const MentorDashboard = () => {
                 setRefreshData(prev => !prev);
             }
 
-            // Return the video URL based on the endpoint used
-            return courseId ? data.videoUrl : data.fileUrl;
+            // Return the video URL based on the endpoint used and new response format
+            if (courseId) {
+                return data.data ? data.data.videoUrl : data.videoUrl;
+            } else {
+                return data.fileUrl;
+            }
         } catch (error) {
             console.error('Error uploading video:', error);
-            toast.error('Failed to upload video');
+
+            // Show more specific error message
+            const errorMessage = error.response?.data?.message || 'Failed to upload video';
+            toast.error(errorMessage);
+
             throw error;
         }
     };

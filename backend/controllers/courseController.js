@@ -760,6 +760,84 @@ const getMentorCourses = async (req, res) => {
   }
 };
 
+// @desc    Upload video for a course
+// @route   POST /api/courses/:id/video
+// @access  Private (Mentor only)
+const uploadCourseVideo = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    // Check if mentor is the author
+    if (!course.createdBy.equals(req.mentor._id)) {
+      return res.status(403).json({ 
+        message: "Not authorized to upload videos for this course" 
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: "No video file uploaded" });
+    }
+
+    // Validate file type
+    const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/quicktime'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ 
+        message: "Invalid file type. Supported formats: MP4, AVI, MOV, WMV, WebM" 
+      });
+    }
+
+    // Check file size (limit to 500MB for videos)
+    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+    if (req.file.size > maxSize) {
+      return res.status(400).json({ 
+        message: "File too large. Maximum size is 500MB." 
+      });
+    }
+
+    // Generate video URL (files are served from uploads directory)
+    const videoUrl = `/uploads/${req.file.filename}`;
+    
+    // Get the full URL for response
+    const fullVideoUrl = `${req.protocol}://${req.get('host')}${videoUrl}`;
+
+    // Return the video information for frontend to use
+    res.json({
+      success: true,
+      message: "Video uploaded successfully",
+      data: {
+        videoUrl: videoUrl,
+        fullVideoUrl: fullVideoUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+
+  } catch (error) {
+    console.error("Error uploading course video:", error);
+    
+    // Delete the uploaded file if there was an error
+    if (req.file && req.file.path) {
+      const fs = require('fs');
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Server error while uploading video",
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createCourse,
   getCourses,
@@ -774,5 +852,6 @@ module.exports = {
   getEnrolledStudents,
   getCourseRatings,
   updateCourseProgress,
-  getMentorCourses, // Add this line
+  getMentorCourses,
+  uploadCourseVideo,
 };
