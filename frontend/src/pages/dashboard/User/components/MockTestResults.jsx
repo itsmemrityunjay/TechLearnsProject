@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaTrophy, FaClock, FaCheckCircle, FaTimesCircle, FaBook, FaPlay } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../utils/axiosConfig';
+import api from '../../../../utils/axiosConfig.js';
 import { toast } from 'react-toastify';
 
 const MockTestResults = () => {
@@ -125,8 +125,8 @@ const MockTestResults = () => {
                                 </div>
                                 <div className="text-right">
                                     <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mb-2 ${result.passed
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
                                         }`}>
                                         {result.passed ? (
                                             <FaCheckCircle className="mr-1" />
