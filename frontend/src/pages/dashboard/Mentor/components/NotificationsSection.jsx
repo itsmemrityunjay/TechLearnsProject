@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaBell, FaTrash } from 'react-icons/fa';
 
-const NotificationsSection = ({ 
-    notifications = [], 
-    onMarkAsRead, 
-    onDeleteNotification, 
+const NotificationsSection = ({
+    notifications = [],
+    onMarkAsRead,
+    onDeleteNotification,
     onDeleteAllNotifications,
-    onRefresh 
+    onRefresh
 }) => {
     const [filter, setFilter] = useState('all');
 

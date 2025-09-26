@@ -487,8 +487,8 @@ const MentorDashboard = () => {
             );
 
             // Update notifications state
-            setNotifications(notifications.map(notification => 
-                notification._id === notificationId 
+            setNotifications(notifications.map(notification =>
+                notification._id === notificationId
                     ? { ...notification, read: true, readAt: new Date() }
                     : notification
             ));
@@ -547,7 +547,7 @@ const MentorDashboard = () => {
             );
 
             // Remove notification from state
-            setNotifications(notifications.filter(notification => 
+            setNotifications(notifications.filter(notification =>
                 notification._id !== notificationId
             ));
 
@@ -747,8 +747,8 @@ const MentorDashboard = () => {
                 </TabPanel>
 
                 <TabPanel>
-                    <StudentsSection 
-                        students={students} 
+                    <StudentsSection
+                        students={students}
                         onGetStudentDetails={handleGetStudentDetails}
                         onSendMessage={handleSendMessage}
                     />
