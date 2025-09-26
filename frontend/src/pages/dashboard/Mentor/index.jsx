@@ -280,6 +280,17 @@ const MentorDashboard = () => {
     const handleVideoUpload = async (courseId, file, onProgressUpdate) => {
         try {
             const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
+            console.log('Starting video upload:', {
+                courseId,
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type
+            });
+
             const formData = new FormData();
             formData.append('file', file);
 
@@ -287,6 +298,8 @@ const MentorDashboard = () => {
             const endpoint = courseId
                 ? `${API_BASE_URL}/api/courses/${courseId}/video`
                 : `${API_BASE_URL}/api/upload`;
+
+            console.log('Upload endpoint:', endpoint);
 
             const { data } = await axios.post(
                 endpoint,
@@ -298,12 +311,14 @@ const MentorDashboard = () => {
                     },
                     onUploadProgress: (progressEvent) => {
                         const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                        onProgressUpdate(percentage);
+                        if (onProgressUpdate) onProgressUpdate(percentage);
                     }
                 }
             );
 
+            console.log('Upload response:', data);
             toast.success('Video uploaded successfully!');
+
             if (courseId) {
                 setRefreshData(prev => !prev);
             }
@@ -316,11 +331,24 @@ const MentorDashboard = () => {
             }
         } catch (error) {
             console.error('Error uploading video:', error);
+            console.error('Error response:', error.response?.data);
 
             // Show more specific error message
-            const errorMessage = error.response?.data?.message || 'Failed to upload video';
-            toast.error(errorMessage);
+            let errorMessage = 'Failed to upload video';
 
+            if (error.response?.status === 400) {
+                errorMessage = error.response.data?.message || 'Bad request - check file format and size';
+            } else if (error.response?.status === 401) {
+                errorMessage = 'Authentication failed - please log in again';
+            } else if (error.response?.status === 403) {
+                errorMessage = 'Not authorized to upload videos for this course';
+            } else if (error.response?.status === 404) {
+                errorMessage = 'Course not found';
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            }
+
+            toast.error(errorMessage);
             throw error;
         }
     };
@@ -605,6 +633,34 @@ const MentorDashboard = () => {
             console.error('Error sending message:', error);
             toast.error('Failed to send message');
         }
+    };
+
+    // Handler for getting student details
+    const handleGetStudentDetails = async (studentId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            };
+
+            const { data } = await axios.get(
+                `${API_BASE_URL}/api/mentors/students/${studentId}/details`,
+                config
+            );
+
+            return data;
+        } catch (error) {
+            console.error('Error getting student details:', error);
+            toast.error('Failed to get student details');
+            return null;
+        }
+    };
+
+    // Wrapper function for sending messages (expected by StudentsSection)
+    const handleSendMessage = async (studentId, subject, message) => {
+        return await handleSendMessageToStudent(studentId, message, subject);
     };
 
     if (loading) {

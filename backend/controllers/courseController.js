@@ -765,28 +765,55 @@ const getMentorCourses = async (req, res) => {
 // @access  Private (Mentor only)
 const uploadCourseVideo = async (req, res) => {
   try {
+    console.log('Video upload request received:', {
+      courseId: req.params.id,
+      mentorId: req.mentor?._id,
+      hasFile: !!req.file,
+      file: req.file ? {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : null
+    });
+
     const course = await Course.findById(req.params.id);
 
     if (!course) {
-      return res.status(404).json({ message: "Course not found" });
+      console.log('Course not found:', req.params.id);
+      return res.status(404).json({ 
+        success: false,
+        message: "Course not found" 
+      });
     }
 
     // Check if mentor is the author
     if (!course.createdBy.equals(req.mentor._id)) {
+      console.log('Authorization failed:', {
+        courseCreatedBy: course.createdBy,
+        mentorId: req.mentor._id
+      });
       return res.status(403).json({ 
+        success: false,
         message: "Not authorized to upload videos for this course" 
       });
     }
 
     // Check if file was uploaded
     if (!req.file) {
-      return res.status(400).json({ message: "No video file uploaded" });
+      console.log('No file uploaded in request');
+      return res.status(400).json({ 
+        success: false,
+        message: "No video file uploaded" 
+      });
     }
 
     // Validate file type
     const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/quicktime'];
     if (!allowedTypes.includes(req.file.mimetype)) {
+      console.log('Invalid file type:', req.file.mimetype);
       return res.status(400).json({ 
+        success: false,
         message: "Invalid file type. Supported formats: MP4, AVI, MOV, WMV, WebM" 
       });
     }
@@ -794,45 +821,53 @@ const uploadCourseVideo = async (req, res) => {
     // Check file size (limit to 500MB for videos)
     const maxSize = 500 * 1024 * 1024; // 500MB in bytes
     if (req.file.size > maxSize) {
+      console.log('File too large:', req.file.size, 'bytes');
       return res.status(400).json({ 
+        success: false,
         message: "File too large. Maximum size is 500MB." 
       });
     }
 
-    // Generate video URL (files are served from uploads directory)
-    const videoUrl = `/uploads/${req.file.filename}`;
+    console.log('File validation passed, processing upload...');
+
+    // Use the same robust upload approach as uploadRoutes.js
+    // Always log information about the upload
+    console.log("Course video upload request:", {
+      userId: req.mentor._id,
+      courseId: req.params.id,
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
+    // For serverless environments like Vercel, use base64 encoding
+    console.log("Using base64 storage for course video upload (serverless compatible)");
+    const base64File = req.file.buffer.toString("base64");
+    const videoUrl = `data:${req.file.mimetype};base64,${base64File}`;
     
-    // Get the full URL for response
-    const fullVideoUrl = `${req.protocol}://${req.get('host')}${videoUrl}`;
+    console.log('Upload successful with base64 encoding');
 
     // Return the video information for frontend to use
     res.json({
       success: true,
-      message: "Video uploaded successfully",
+      message: "Video uploaded successfully (using base64 storage for serverless compatibility)",
       data: {
         videoUrl: videoUrl,
-        fullVideoUrl: fullVideoUrl,
-        filename: req.file.filename,
+        fullVideoUrl: videoUrl, // Same as videoUrl for base64
+        filename: req.file.originalname,
         originalName: req.file.originalname,
         size: req.file.size,
-        mimetype: req.file.mimetype
+        mimetype: req.file.mimetype,
+        note: "Video stored as base64 for serverless compatibility"
       }
     });
 
   } catch (error) {
-    console.error("Error uploading course video:", error);
-    
-    // Delete the uploaded file if there was an error
-    if (req.file && req.file.path) {
-      const fs = require('fs');
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Error deleting file:', err);
-      });
-    }
+    console.error("Error in uploadCourseVideo:", error);
     
     res.status(500).json({ 
       success: false,
-      message: "Server error while uploading video",
+      message: "Server error during video upload",
       error: error.message 
     });
   }

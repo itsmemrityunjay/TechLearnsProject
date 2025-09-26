@@ -15,9 +15,16 @@ app.use(express.json({ limit: "500mb" })); // Increased for video uploads
 app.use(express.urlencoded({ extended: true, limit: "500mb" })); // Increased for video uploads
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      "https://tech-learns-project-q8rk.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
     credentials: true,
     exposedHeaders: ["Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
