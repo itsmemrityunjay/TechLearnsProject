@@ -90,7 +90,23 @@ const MentorDashboard = () => {
                 console.log("Mock tests received:", mockTestsData);
                 setMockTests(mockTestsData);
 
-                // Fetch other data...
+                // Fetch mentor's classes
+                console.log("Fetching mentor classes...");
+                const { data: classesData } = await api.get(
+                    `${API_BASE_URL}/api/classes`,
+                    config
+                );
+                console.log("Classes received:", classesData);
+                setClasses(classesData);
+
+                // Fetch mentor's students
+                console.log("Fetching mentor students...");
+                const { data: studentsData } = await api.get(
+                    `${API_BASE_URL}/api/mentors/students`,
+                    config
+                );
+                console.log("Students received:", studentsData);
+                setStudents(studentsData);
             } catch (error) {
                 console.error("Error fetching mentor data:", error);
                 if (error.response && error.response.status === 401) {
@@ -393,7 +409,7 @@ const MentorDashboard = () => {
             };
 
             const { data } = await axios.post(
-                `${API_BASE_URL}/api/mentors/classes`,
+                `${API_BASE_URL}/api/classes`,
                 classData,
                 config
             );
@@ -419,9 +435,9 @@ const MentorDashboard = () => {
                 }
             };
 
-            const { data } = await axios.post(
-                `${API_BASE_URL}/api/mentors/classes/${classId}/attendance`,
-                attendanceData,
+            const { data } = await axios.put(
+                `${API_BASE_URL}/api/classes/${classId}/attendance`,
+                { attendanceData },
                 config
             );
 

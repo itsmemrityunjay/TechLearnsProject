@@ -372,25 +372,6 @@ const getMentorStudents = async (req, res) => {
   }
 };
 
-// @desc    Get classes scheduled by this mentor
-// @route   GET /api/mentors/classes
-// @access  Private (Mentor only)
-const getMentorClasses = async (req, res) => {
-  try {
-    const mentorId = req.mentor._id;
-
-    // Find all classes by this mentor
-    const classes = await Class.find({ mentor: mentorId })
-      .populate("course", "title")
-      .sort({ startTime: 1 });
-
-    res.json(classes);
-  } catch (error) {
-    console.error("Error fetching mentor classes:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 // @desc    Get notifications for this mentor
 // @route   GET /api/mentors/notifications
 // @access  Private (Mentor only)
@@ -588,7 +569,6 @@ module.exports = {
   getMentorReviews,
   addMentorReview,
   getMentorStudents,
-  getMentorClasses,
   getMentorNotifications,
   resetMentorPassword,
   updateMentorCourse,

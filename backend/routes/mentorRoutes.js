@@ -8,7 +8,6 @@ const {
   getAllMentors,
   getMentorById,
   getMentorStudents,
-  getMentorClasses,
   getMentorNotifications,
   getMentorCourses,
   getMentorTopics,
@@ -33,7 +32,6 @@ router.get("/", getAllMentors);
 router.get("/profile", protect, mentorOnly, getMentorProfile);
 router.put("/profile", protect, mentorOnly, updateMentorProfile);
 router.get("/students", protect, mentorOnly, getMentorStudents);
-router.get("/classes", protect, mentorOnly, getMentorClasses);
 router.get("/notifications", protect, mentorOnly, getMentorNotifications);
 router.put("/availability", protect, mentorOnly, updateMentorAvailability);
 router.get("/courses", protect, mentorOnly, getMentorCourses);

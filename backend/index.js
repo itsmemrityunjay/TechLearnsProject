@@ -5,6 +5,8 @@ const path = require("path");
 
 require("dotenv").config();
 
+const { initializeClassSchedulers } = require("./utils/classScheduler");
+
 // Initialize Express app
 const app = express();
 
@@ -118,6 +120,10 @@ app.use(async (req, res, next) => {
     try {
       await connectToDatabase();
       console.log("DB connection established by middleware");
+      
+      // Initialize class schedulers after database connection
+      initializeClassSchedulers();
+      
       next();
     } catch (error) {
       console.error("Middleware DB connection failed:", error);
@@ -154,9 +160,10 @@ const topicRoutes = require("./routes/topicRoutes");
 const competitionRoutes = require("./routes/competitionRoutes");
 const mockTestRoutes = require("./routes/mockTestRoutes");
 const publicMockTestRoutes = require("./routes/publicMockTestRoutes");
+const classRoutes = require("./routes/classRoutes");
 const notebookRoutes = require("./routes/notebookRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
-const paymentRoutes = require("./routes/paymentRoutes"); // Uncomment this line
+const paymentRoutes = require("./routes/paymentRoutes");
 
 // Use routes
 app.use("/api/users", userRoutes);
@@ -167,9 +174,10 @@ app.use("/api/topics", topicRoutes);
 app.use("/api/competitions", competitionRoutes);
 app.use("/api/mock-tests", publicMockTestRoutes); // Public mock test routes for students
 app.use("/api/mocktests", mockTestRoutes); // Mentor-specific mock test routes
+app.use("/api/classes", classRoutes); // Class management routes
 app.use("/api/notebooks", notebookRoutes);
 app.use("/api/upload", uploadRoutes);
-app.use("/api/payments", paymentRoutes); // Uncomment this line
+app.use("/api/payments", paymentRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
