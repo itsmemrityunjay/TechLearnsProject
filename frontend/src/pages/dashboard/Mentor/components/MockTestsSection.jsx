@@ -71,7 +71,7 @@ const MockTestsSection = ({ tests, onNewTest, onEditTest, onViewResults, onDelet
                                     <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                                         <div>
                                             <span className="text-gray-500">Associated Course:</span>
-                                            <p className="font-medium text-gray-900">{test.courseName || 'Not specified'}</p>
+                                            <p className="font-medium text-gray-900">{test.courseId?.title || 'Not specified'}</p>
                                         </div>
                                         <div>
                                             <span className="text-gray-500">Time Limit:</span>
