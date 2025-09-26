@@ -309,15 +309,28 @@ const MentorDashboard = () => {
                         'Content-Type': 'multipart/form-data',
                         Authorization: `Bearer ${token}`
                     },
+                    timeout: 300000, // 5 minute timeout for video uploads
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity,
                     onUploadProgress: (progressEvent) => {
                         const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        console.log(`Upload progress: ${percentage}%`);
                         if (onProgressUpdate) onProgressUpdate(percentage);
                     }
                 }
             );
 
             console.log('Upload response:', data);
-            toast.success('Video uploaded successfully!');
+
+            // Show success message based on storage type
+            const storageType = data.data?.storage || 'unknown';
+            if (storageType === 'google-drive') {
+                toast.success('Video uploaded successfully to Google Drive!');
+            } else if (storageType === 'base64-fallback') {
+                toast.success('Video uploaded with fallback storage!');
+            } else {
+                toast.success('Video uploaded successfully!');
+            }
 
             if (courseId) {
                 setRefreshData(prev => !prev);
@@ -336,7 +349,11 @@ const MentorDashboard = () => {
             // Show more specific error message
             let errorMessage = 'Failed to upload video';
 
-            if (error.response?.status === 400) {
+            if (error.code === 'ERR_NETWORK') {
+                errorMessage = 'Network error - please check your connection and try again';
+            } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                errorMessage = 'Upload timeout - file may be too large or connection too slow';
+            } else if (error.response?.status === 400) {
                 errorMessage = error.response.data?.message || 'Bad request - check file format and size';
             } else if (error.response?.status === 401) {
                 errorMessage = 'Authentication failed - please log in again';

@@ -830,8 +830,7 @@ const uploadCourseVideo = async (req, res) => {
 
     console.log('File validation passed, processing upload...');
 
-    // Use the same robust upload approach as uploadRoutes.js
-    // Always log information about the upload
+    // Use the same Google Drive upload approach as uploadRoutes.js
     console.log("Course video upload request:", {
       userId: req.mentor._id,
       courseId: req.params.id,
@@ -840,27 +839,106 @@ const uploadCourseVideo = async (req, res) => {
       size: req.file.size
     });
 
-    // For serverless environments like Vercel, use base64 encoding
-    console.log("Using base64 storage for course video upload (serverless compatible)");
-    const base64File = req.file.buffer.toString("base64");
-    const videoUrl = `data:${req.file.mimetype};base64,${base64File}`;
-    
-    console.log('Upload successful with base64 encoding');
-
-    // Return the video information for frontend to use
-    res.json({
-      success: true,
-      message: "Video uploaded successfully (using base64 storage for serverless compatibility)",
-      data: {
-        videoUrl: videoUrl,
-        fullVideoUrl: videoUrl, // Same as videoUrl for base64
-        filename: req.file.originalname,
-        originalName: req.file.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        note: "Video stored as base64 for serverless compatibility"
+    try {
+      // Import the Google Drive functions from uploadRoutes
+      const { google } = require('googleapis');
+      const path = require('path');
+      
+      // Initialize Google Drive (same as uploadRoutes.js)
+      let drive;
+      let auth;
+      
+      if (process.env.GOOGLE_SERVICE_ACCOUNT) {
+        try {
+          const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+          if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            auth = new google.auth.GoogleAuth({
+              credentials: serviceAccount,
+              scopes: ['https://www.googleapis.com/auth/drive'],
+            });
+            drive = google.drive({ version: 'v3', auth });
+          }
+        } catch (parseError) {
+          console.error("❌ Failed to parse GOOGLE_SERVICE_ACCOUNT for course video:", parseError.message);
+        }
       }
-    });
+
+      let videoUrl, fileId;
+
+      if (drive) {
+        console.log("✅ Using Google Drive for course video upload");
+        
+        // Create folder structure for course videos
+        const folderStructure = await createFolderStructure(drive, 'TechLearns', req.mentor._id.toString(), ['videos']);
+        const targetFolderId = folderStructure.subfolders.videos?.id || 'root';
+        
+        // Upload to Google Drive
+        const uploadResult = await uploadToGoogleDrive(
+          drive,
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype,
+          targetFolderId,
+          {
+            userId: req.mentor._id.toString(),
+            category: 'course-video',
+            courseId: req.params.id
+          }
+        );
+        
+        videoUrl = uploadResult.fileUrl;
+        fileId = uploadResult.fileId;
+        
+        console.log("✅ Course video uploaded to Google Drive successfully:", {
+          fileId,
+          videoUrl: videoUrl.substring(0, 100) + '...'
+        });
+        
+      } else {
+        console.log("⚠️ Google Drive not available, using base64 fallback");
+        const base64File = req.file.buffer.toString("base64");
+        videoUrl = `data:${req.file.mimetype};base64,${base64File}`;
+      }
+
+      // Return the video information for frontend to use
+      res.json({
+        success: true,
+        message: drive ? "Video uploaded successfully to Google Drive" : "Video uploaded with base64 fallback",
+        data: {
+          videoUrl: videoUrl,
+          fullVideoUrl: videoUrl,
+          filename: req.file.originalname,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          fileId: fileId || null,
+          storage: drive ? 'google-drive' : 'base64'
+        }
+      });
+
+    } catch (uploadError) {
+      console.error('Google Drive upload failed, using base64 fallback:', uploadError);
+      
+      // Fallback to base64 if Google Drive fails
+      const base64File = req.file.buffer.toString("base64");
+      const videoUrl = `data:${req.file.mimetype};base64,${base64File}`;
+      
+      res.json({
+        success: true,
+        message: "Video uploaded with base64 fallback (Google Drive failed)",
+        data: {
+          videoUrl: videoUrl,
+          fullVideoUrl: videoUrl,
+          filename: req.file.originalname,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          storage: 'base64-fallback',
+          note: "Google Drive upload failed, using base64 storage"
+        }
+      });
+    }
 
   } catch (error) {
     console.error("Error in uploadCourseVideo:", error);
@@ -872,6 +950,183 @@ const uploadCourseVideo = async (req, res) => {
     });
   }
 };
+
+// Helper functions for Google Drive operations (copied from uploadRoutes.js)
+async function findFolder(drive, name, parentId = null) {
+  try {
+    if (!drive) return null;
+    
+    let query = `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false`;
+    if (parentId) {
+      query += ` and '${parentId}' in parents`;
+    }
+    
+    const res = await drive.files.list({
+      q: query,
+      fields: 'files(id, name)',
+    });
+    
+    return res.data.files && res.data.files.length > 0 ? res.data.files[0] : null;
+  } catch (error) {
+    console.error("Error finding folder:", error);
+    return null;
+  }
+}
+
+async function createFolder(drive, name, parentId = null) {
+  try {
+    if (!drive) return null;
+    
+    const fileMetadata = {
+      name,
+      mimeType: 'application/vnd.google-apps.folder',
+      ...(parentId && { parents: [parentId] }),
+    };
+
+    const folder = await drive.files.create({
+      resource: fileMetadata,
+      fields: 'id, name',
+    });
+    
+    return folder.data;
+  } catch (error) {
+    console.error("Error creating folder:", error);
+    return null;
+  }
+}
+
+async function createFolderStructure(drive, mainFolderName, userId, subfolders = []) {
+  try {
+    if (!drive) return {
+      mainFolder: { id: 'root', name: mainFolderName },
+      userFolder: { id: 'root', name: userId },
+      subfolders: { videos: { id: 'root', name: 'videos' } }
+    };
+    
+    // Main folder
+    let mainFolder = await findFolder(drive, mainFolderName);
+    if (!mainFolder) {
+      mainFolder = await createFolder(drive, mainFolderName);
+      if (!mainFolder) return null;
+    }
+    
+    // User-specific folder inside the main folder
+    let userFolder = await findFolder(drive, userId, mainFolder.id);
+    if (!userFolder) {
+      userFolder = await createFolder(drive, userId, mainFolder.id);
+      if (!userFolder) return { mainFolder, userFolder: { id: 'root', name: userId }, subfolders: {} };
+    }
+    
+    // Create subfolders inside the user folder
+    const createdSubfolders = {};
+    for (const subfolderName of subfolders) {
+      let subfolder = await findFolder(drive, subfolderName, userFolder.id);
+      if (!subfolder) {
+        subfolder = await createFolder(drive, subfolderName, userFolder.id);
+        if (!subfolder) {
+          createdSubfolders[subfolderName] = { id: 'root', name: subfolderName };
+          continue;
+        }
+      }
+      createdSubfolders[subfolderName] = subfolder;
+    }
+    
+    return {
+      mainFolder,
+      userFolder,
+      subfolders: createdSubfolders,
+    };
+  } catch (error) {
+    console.error("Error creating folder structure:", error);
+    return {
+      mainFolder: { id: 'root', name: mainFolderName },
+      userFolder: { id: 'root', name: userId },
+      subfolders: { videos: { id: 'root', name: 'videos' } }
+    };
+  }
+}
+
+async function uploadToGoogleDrive(drive, fileBuffer, fileName, mimeType, destinationFolderId, options = {}) {
+  try {
+    if (!drive) throw new Error("Drive API not initialized");
+    
+    const { userId, category, courseId } = options;
+    
+    // Create timestamp for uniqueness
+    const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 14);
+    
+    // Extract file extension
+    const path = require('path');
+    const fileExt = path.extname(fileName);
+    const fileNameWithoutExt = path.basename(fileName, fileExt);
+    
+    // Build new filename with context information
+    let newFileName = '';
+    
+    if (userId) {
+      newFileName += `${userId}_`;
+    }
+    
+    if (category) {
+      newFileName += `${category}_`;
+    }
+    
+    if (courseId) {
+      newFileName += `course-${courseId}_`;
+    }
+    
+    // Add sanitized original name and timestamp
+    newFileName += `${fileNameWithoutExt.replace(/[^a-zA-Z0-9-_]/g, '')}_${timestamp}${fileExt}`;
+    
+    const fileMetadata = {
+      name: newFileName,
+      parents: [destinationFolderId],
+    };
+    
+    const media = {
+      mimeType,
+      body: Buffer.isBuffer(fileBuffer) 
+        ? require('stream').Readable.from(fileBuffer)
+        : fileBuffer
+    };
+    
+    // Upload the file
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media,
+      fields: 'id, name',
+    });
+    
+    // Set permission to "anyone with the link can view"
+    await drive.permissions.create({
+      fileId: file.data.id,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone',
+      }
+    });
+    
+    // Get the shareable web link
+    const getFile = await drive.files.get({
+      fileId: file.data.id,
+      fields: 'id, name, webContentLink, webViewLink',
+      supportsAllDrives: true,
+    });
+
+    const fileId = file.data.id;
+    const fileUrl = getFile.data.webContentLink || getFile.data.webViewLink;
+
+    return {
+      fileName: file.data.name,
+      originalName: fileName,
+      fileId,
+      fileUrl,
+    };
+  } catch (error) {
+    console.error("Error uploading file to Google Drive:", error);
+    throw error;
+  }
+}
 
 module.exports = {
   createCourse,
