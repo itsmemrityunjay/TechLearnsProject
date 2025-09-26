@@ -277,11 +277,11 @@ const deleteMockTest = async (req, res) => {
         .json({ message: "Not authorized to delete this mock test" });
     }
 
-    await mockTest.remove();
+    await MockTest.findByIdAndDelete(req.params.id);
     res.json({ message: "Mock test deleted successfully" });
   } catch (error) {
     console.error("Error deleting mock test:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
